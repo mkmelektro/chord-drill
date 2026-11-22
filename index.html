@@ -39,7 +39,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 @media(max-width:600px){.intro-head{grid-template-columns:1fr}.share-qr{display:flex;align-items:center;max-width:none;text-align:left;gap:10px}.share-qr svg{width:111px;flex:0 0 111px}}
 .screen-status{font-size:.8rem;margin:6px 0 0}.screen-status[data-awake="true"]{color:var(--accent)}
 
-.calibration-title{font-size:clamp(2.2rem,7vw,4rem);letter-spacing:-.05em;margin:13px 0}.calibration-strings{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:20px 0}.calibration-strings span{display:grid;place-items:center;min-width:40px;padding:8px 4px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-weight:700}.calibration-strings .captured{border-color:var(--accent);color:var(--accent)}#calibrationStatus{min-height:2.6em}.quiz-stats{margin-top:10px}
+.calibration-title{font-size:clamp(2.2rem,7vw,4rem);letter-spacing:-.05em;margin:13px 0}.calibration-strings{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:20px 0}.calibration-strings>span{display:grid;place-items:center;min-width:40px;padding:8px 4px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-weight:700}.calibration-strings .captured{border-color:var(--accent);color:var(--accent)}#calibrationStatus{min-height:2.6em}.quiz-stats{margin-top:10px}
 
 :root{--wrong:#ff7d8d;--wrong-tint:#ff526855}.fretboard .string-meter:has(i[data-wrong=true]){background:#783744}.string-meter i[data-wrong=true]{background:var(--wrong)}.fretboard .heard-note.wrong-note{border-color:var(--wrong);background:var(--wrong-tint)}.diagram-legend .wrong-label::before{box-sizing:border-box;background:var(--wrong-tint);border:1px solid var(--wrong)}.staff .staff-heard .notehead.wrong-note{stroke:var(--wrong);fill:var(--wrong-tint)}.staff .staff-heard .accidental.wrong-note{fill:var(--wrong)}.piano-key.wrong-key::after{border-color:#c42e49;background:var(--wrong-tint)}.piano-key.wrong-key::before{content:"";z-index:2;position:absolute;width:min(14px,80%);aspect-ratio:1;left:50%;top:46%;transform:translate(-50%,-50%);border:2px solid #a31934;border-radius:50%;background:#ff9aa7}
 
@@ -55,6 +55,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 .fft-settings{display:flex;align-items:center;flex-wrap:wrap;gap:6px 9px;margin:8px 4px 0;color:var(--muted);font-size:.85rem}.fft-settings select{appearance:none;background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 14px center/5px 5px no-repeat,linear-gradient(135deg,currentColor 50%,transparent 50%) right 9px center/5px 5px no-repeat #2d3343;color:var(--ink);border:1px solid var(--line);border-radius:7px;font:inherit;padding:6px 24px 6px 8px}.fft-settings .fft-signal{flex-basis:100%;margin:2px 0 0;color:#a7d9f7}
 
 .fft-calibration ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));list-style:none;gap:6px;margin:7px 4px;padding:0}.fft-calibration li{display:flex;flex-direction:column;gap:3px;background:#2c3240;border-radius:6px;padding:6px;font-variant-numeric:tabular-nums;font-size:.78rem;color:#c6c9d3}.fft-calibration strong{color:var(--ink)}
+
+.calibration-strings{margin-top:41px}.calibration-strings>span{position:relative}.tune-slot{position:absolute;top:-29px;left:50%;transform:translateX(-50%);width:35px;height:24px;text-align:center;white-space:nowrap;pointer-events:none}.fretboard{margin-top:52px}.fretboard .tune-slot{top:-43px;transform:translateX(-50%);z-index:3}.tune-slot i{display:block;font-style:normal;line-height:13px;color:#ffac72;font-size:18px;transform:scale(var(--tune-scale,1));transition:transform .12s}.tune-slot small{display:block;font-size:9px;line-height:11px;color:#ffd2aa;font-variant-numeric:tabular-nums}.tune-slot.in-tune i,.tune-slot.in-tune small{color:var(--accent)}
 </style>
 <main id="appRoot">
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong><button id="fullscreenToggle" aria-pressed="false">Full screen</button></div>
@@ -127,6 +129,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <label for="fftResolution">FFT size</label>
 <select id="fftResolution"><option value="8192">8,192 · Standard</option><option value="16384">16,384 · High resolution</option></select>
 <p class="fft-signal" id="fftSignal">Post-AGC spectrum · Waiting for microphone</p>
+<p class="fft-signal" id="fftNoise" hidden></p>
 </div>
 <p id="fftReadout">Waiting for microphone input.</p>
 <canvas id="fftCanvas" tabindex="0" role="img" aria-label="Live FFT spectrum with one bar per bin. Use left and right arrow keys to inspect bins."></canvas>
@@ -141,7 +144,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <p id="resultScore"></p><p id="resultBest"></p>
 <div class="actions"><button id="replay">Play again</button><button id="resultSetup">Change mode</button></div>
 </section>
-<p class="foot" id="tip" hidden>Use standard tuning. Strum once per chord.</p>
+<p class="foot" id="tip" hidden>Use standard tuning. Pluck one open string to check its tuning, or strum once per chord.</p>
 </main>
 <script>
 "use strict";
@@ -543,6 +546,7 @@ function beginQuiz(seconds) {
   ui.best.textContent=recordBefore;
   showClock();
   screen="quiz";
+  fftUnlocked=false;
   deck=[];
   target=null;
   count=0;
@@ -568,6 +572,7 @@ function resetGuitarCalibration() {
   calibration=instrument==="guitar" ? {
     notes:Array(6).fill(null), noisePitches:new Float64Array(100), started:0, readyAfter:0, noise:0, peakLevel:0, previousLevel:0, message:""
   } : null;
+  setLiveTuning(null);
   if(calibration) drawCalibration("Connecting microphone…");
 }
 
@@ -582,7 +587,8 @@ function drawCalibration(message) {
   if(state.visible===visible) return;
   state.visible=visible;
   ui.calibrationStrings.innerHTML=openStringNames.map((name,index)=>
-    '<span class="'+(state.notes[index]?'captured':'')+'" aria-label="'+name+(state.notes[index]?' detected':' waiting')+'">'+name+'</span>').join("");
+    '<span class="'+(state.notes[index]?'captured':'')+'" aria-label="'+name+(state.notes[index]?' detected':' waiting')+'">'+name+tuningSlot(index)+'</span>').join("");
+  drawLiveTuning();
 }
 
 function spectralPeakMidi(spectrum,bin,binHz) {
@@ -594,8 +600,10 @@ function spectralPeakMidi(spectrum,bin,binHz) {
 
 const guitarMinHz=75, guitarMaxHz=1350;
 const calibratedPitchTolerance=.31+.03;
+const guitarBinMarginDb=8;
 
-function openStringPeaks(spectrum,binHz) {
+function openStringPeaks(spectrum,binHz,adaptive=null,gain=1) {
+  const gainDb=adaptive ? 20*Math.log10(gain) : 0;
   return guitarTuning.map(note=>{
     const frequency=440*2**((note-69)/12);
     const center=Math.round(frequency/binHz);
@@ -604,7 +612,7 @@ function openStringPeaks(spectrum,binHz) {
     let best=null;
     for(let bin=first;bin<=last;bin++){
       const power=spectrum[bin];
-      if(power < -86 || power<spectrum[bin-1] || power<=spectrum[bin+1]) continue;
+      if(power < -86 || power<spectrum[bin-1] || power<=spectrum[bin+1] || (adaptive && power-gainDb<adaptive.floor[bin]+guitarBinMarginDb)) continue;
       const offset=spectralPeakMidi(spectrum,bin,binHz)-note;
       if(Math.abs(offset)>.72) continue;
       const amplitude=10**(power/20);
@@ -613,6 +621,83 @@ function openStringPeaks(spectrum,binHz) {
     return best;
   });
 }
+let liveTuning=null;
+
+function tuningSlot(index,left="") {
+  return '<span class="tune-slot" data-string="'+index+'"'+(left?' style="left:'+left+'"':'')+'></span>';
+}
+
+function estimateOpenPitch(samples,sampleRate,note) {
+  const nominal=440*2**((note-69)/12);
+  const period=sampleRate/nominal;
+  const first=Math.floor(period/1.043), last=Math.ceil(period*1.043);
+  const end=samples.length;
+  const start=Math.max(last+1,end-2048);
+  function score(lag) {
+    let cross=0, a=0, b=0;
+    for(let index=start;index<end;index++){
+      const sample=samples[index], previous=samples[index-lag];
+      cross+=sample*previous;
+      a+=sample*sample;
+      b+=previous*previous;
+    }
+    return cross/Math.sqrt(a*b||1);
+  }
+  let best=first, strength=-1;
+  for(let lag=first;lag<=last;lag++){
+    const value=score(lag);
+    if(value>strength){strength=value;best=lag;}
+  }
+  if(strength<.85 || best===first || best===last) return null;
+  const left=score(best-1),right=score(best+1),curvature=2*strength-left-right;
+  const offset=curvature>0?.5*(right-left)/curvature:0;
+  return 1200*Math.log2(period/(best+offset));
+}
+
+function detectOpenTuning(spectrum,binHz,samples,sampleRate,adaptive,gain) {
+  if(!adaptive?.active) return null;
+  const candidates=openStringPeaks(spectrum,binHz,adaptive,gain)
+    .flatMap((peak,index)=>peak?[{...peak,index}]:[]).sort((a,b)=>b.amplitude-a.amplitude);
+  for(const candidate of candidates){
+    const fundamental=guitarTuning[candidate.index]+candidate.offset;
+    const hasOtherTone=candidates.some(other=>{
+      if(other===candidate || other.amplitude<candidate.amplitude*.35) return false;
+      const difference=guitarTuning[other.index]+other.offset-fundamental;
+      const harmonic=2**(difference/12);
+      return harmonic<1.8 || Math.abs(harmonic-Math.round(harmonic))>.09;
+    });
+    if(hasOtherTone) continue;
+    const cents=estimateOpenPitch(samples,sampleRate,guitarTuning[candidate.index]);
+    if(cents===null || Math.abs(cents)>70 || Math.abs(cents-candidate.offset*100)>30) continue;
+    return {index:candidate.index,cents};
+  }
+  return null;
+}
+
+function drawLiveTuning() {
+  const slots=[...ui.hint.querySelectorAll(".tune-slot"),...ui.calibrationStrings.querySelectorAll(".tune-slot")];
+  for(const slot of slots){
+    const tuning=liveTuning?.index===Number(slot.dataset.string)?liveTuning:null;
+    const cents=tuning?Math.round(tuning.cents):null;
+    const marker=cents===null?"":Math.abs(cents)<=3?"●":cents<0?"→":"←";
+    const heading=cents===null?"":(cents>0?"+":"")+cents+"¢";
+    const scale=Math.min(1.6,.68+Math.abs(cents||0)/55);
+    const markup=marker ? '<i style="--tune-scale:'+scale.toFixed(2)+'">'+marker+'</i><small>'+heading+'</small>' : "";
+    if(slot.innerHTML===markup) continue;
+    slot.innerHTML=markup;
+    slot.classList.toggle("in-tune",cents!==null && Math.abs(cents)<=3);
+    if(!marker) slot.removeAttribute("title");
+    else slot.title=heading+(Math.abs(cents)<=3?" · In tune":cents<0?" · Flat · Raise pitch":" · Sharp · Lower pitch");
+  }
+}
+
+function setLiveTuning(value) {
+  if(value && liveTuning?.index===value.index) value={index:value.index,cents:liveTuning.cents*.55+value.cents*.45};
+  if(!value && !liveTuning) return;
+  liveTuning=value;
+  drawLiveTuning();
+}
+
 function calibrationProfile(notes,peakLevel,noise,noisePitches=new Float64Array(100)) {
   const strongest=Math.max(...notes.map(note=>note?.amplitude||0));
   const missing=notes.map((note,index)=>!note || note.amplitude<Math.max(strongest*.025,noisePitches[guitarTuning[index]]*2.6) ? index : -1).filter(index=>index>=0);
@@ -642,7 +727,7 @@ function finishCalibration(profile=null) {
   ui.target.focus();
 }
 
-function collectCalibration(spectrum,binHz,level,now,agcGain=1) {
+function collectCalibration(spectrum,binHz,level,now,agcGain=1,adaptive=null) {
   const state=calibration;
   if(state.readyAfter){
     if(now>=state.readyAfter) finishCalibration(state.profile);
@@ -666,7 +751,7 @@ function collectCalibration(spectrum,binHz,level,now,agcGain=1) {
     state.peakLevel=rawLevel;
   }
   state.peakLevel=Math.max(state.peakLevel,rawLevel);
-  for(const [index,note] of openStringPeaks(spectrum,binHz).entries()){
+  for(const [index,note] of openStringPeaks(spectrum,binHz,adaptive,agcGain).entries()){
     if(!note) continue;
     note.amplitude/=agcGain;
     if(!state.notes[index] || note.amplitude>state.notes[index].amplitude) state.notes[index]=note;
@@ -735,12 +820,14 @@ function drawGuitar() {
     ? '<span class="fret-dot" style="left:'+column(index)+'%;top:'+row(fret)+'%">'+shape.fingers[index]+'</span>' : '').join("");
   const variation=practice==="barreSet" ? target[3].filter(option=>option.barre) : target[3];
   const bars=guitarTuning.map((_,index)=>'<span class="string-meter" style="left:'+column(index)+'%"><i></i></span>').join("");
-  ui.hint.innerHTML='<div class="fretboard '+(start===1?'open':'')+'" aria-hidden="true"><span class="fret-start" style="top:12.5%">'+start+'fr</span>'+bars+labels+strip+dots+'<div class="heard-layer"></div>'+
+  const tuner=guitarTuning.map((_,index)=>tuningSlot(index,column(index)+'%')).join("");
+  ui.hint.innerHTML='<div class="fretboard '+(start===1?'open':'')+'" aria-hidden="true"><span class="fret-start" style="top:12.5%">'+start+'fr</span>' +bars+labels+strip+dots+tuner+'<div class="heard-layer"></div>'+
     '</div><p class="diagram-caption">Low E to high E · '+frets.map(fret=>fret===null?'×':fret).join(' – ')+
     (bar?' · Barre fret '+bar[2]+' ('+shape.family+')':'')+'</p><div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span><span class="wrong-label">Wrong note</span></div>';
   meters=[...ui.hint.querySelectorAll(".string-meter i")];
   heardLayer=ui.hint.querySelector(".heard-layer");
   renderedHearing="";
+  drawLiveTuning();
   if(variation.length>1){
     const button=document.createElement("button");
     button.className="shape-button";
@@ -795,7 +882,7 @@ async function toggleFullscreen() {
 }
 
 function controls() {
-  ui.fftDebug.hidden=screen!=="quiz";
+  ui.fftDebug.hidden=screen!=="quiz" || !fftUnlocked;
   ui.retryInput.hidden=Boolean(mode) || busy;
   ui.calibrationPanel.hidden=!calibration;
   ui.roundContent.hidden=Boolean(calibration);
@@ -825,6 +912,7 @@ function idleMessage() {
 }
 function nextChord() {
   if(!playing) return;
+  fftTaps=0;
   clearTimeout(midiCheck);
   clearTimeout(advance);
   advance=null;
@@ -913,6 +1001,7 @@ function stop() {
   stream?.getTracks().forEach(track=>track.stop());
   if(context?.state!=="closed") context?.close().catch(()=>{});
   stream=context=analyser=null;
+  setLiveTuning(null);
   if(midiAccess) {
     midiAccess.onstatechange=null;
     midiAccess=null;
@@ -962,20 +1051,21 @@ function switchInstrument(value) {
   count=0;
   streak=0;
   updateScore();
-  ui.tip.textContent=value==="guitar" ? "Use standard tuning. Strum once per chord." : "Play the chord tones together in any inversion. Release the keys between chords when using MIDI.";
+  ui.tip.textContent=value==="guitar" ? "Use standard tuning. Pluck one open string to check its tuning, or strum once per chord." : "Play the chord tones together in any inversion. Release the keys between chords when using MIDI.";
   showSetup();
   ui.setupTitle.focus();
 }
-function spectralPitches(spectrum,binHz,expected=null) {
+function spectralPitches(spectrum,binHz,expected=null,adaptive=null,gain=1) {
   const pitches=new Float64Array(100);
   const guitar=instrument==="guitar";
+  const gainDb=adaptive ? 20*Math.log10(gain) : 0;
   const first=Math.max(2,Math.ceil((guitar?guitarMinHz:30)/binHz));
   const last=Math.min(spectrum.length-2,Math.floor((guitar?guitarMaxHz:2200)/binHz));
   for(let bin=first;bin<=last;bin++){
     const power=spectrum[bin];
     const left=bin>first?spectrum[bin-1]:-Infinity;
     const right=bin<last?spectrum[bin+1]:-Infinity;
-    if(power<-91 || power<left || power<=right) continue;
+    if(power<-91 || power<left || power<=right || (adaptive && power-gainDb<adaptive.floor[bin]+guitarBinMarginDb)) continue;
     const midi=bin===first || bin===last ? 69+12*Math.log2(bin*binHz/440) : spectralPeakMidi(spectrum,bin,binHz);
     let note=Math.round(midi), error=Math.abs(note-midi);
     if(expected){
@@ -1118,15 +1208,26 @@ async function connectInput() {
 
 const fftMinDb=-100, fftLeft=43, fftRight=12;
 function fftRange(){return instrument==="guitar" ? [guitarMinHz,guitarMaxHz] : [30,4000];}
-let fftPlot, fftFrame, selectedBin=null;
+let fftPlot, fftFrame, selectedBin=null, fftUnlocked=false, fftTaps=0;
+
+function tapFftShortcut() {
+  if(!playing || calibration || ++fftTaps<5) return;
+  fftTaps=0;
+  fftUnlocked=!fftUnlocked;
+  controls();
+  if(fftUnlocked){
+    ui.fftDebug.open=true;
+    if(mode!=="mic") resetFftPlot();
+  }
+}
 
 function selectedFftSize(){return ui.fftResolution.value==="16384" ? 16384 : 8192;}
 
 function inspectFftBin(index) {
   if(!fftFrame) return;
-  const {spectrum,binHz,sampleRate,first,last,gain}=fftFrame;
+  const {spectrum,binHz,sampleRate,first,last,gain,adaptive}=fftFrame;
   selectedBin=index===null ? null : Math.max(first,Math.min(last,index));
-  paintFft(spectrum,binHz,sampleRate,gain);
+  paintFft(spectrum,binHz,sampleRate,gain,adaptive);
 }
 
 function selectFftBinAt(event) {
@@ -1141,7 +1242,7 @@ function selectFftBinAt(event) {
   inspectFftBin(Math.round(hz/fftFrame.binHz));
 }
 
-function paintFft(spectrum,binHz,sampleRate,gain=1) {
+function paintFft(spectrum,binHz,sampleRate,gain=1,adaptive=null) {
   if(ui.fftDebug.hidden || !ui.fftDebug.open) return;
   const canvas=ui.fftCanvas;
   const width=canvas.clientWidth, height=canvas.clientHeight;
@@ -1192,7 +1293,8 @@ function paintFft(spectrum,binHz,sampleRate,gain=1) {
   const first=Math.max(1,Math.ceil(min/binHz));
   const last=Math.min(spectrum.length-2,Math.floor(max/binHz));
   if(first>last) return;
-  let peak=first;
+  const dbGain=20*Math.log10(gain);
+  let peak=first, notePeak=null;
   plot.fillStyle="#67bceb66";
   plot.strokeStyle="#a9e96b";
   plot.lineWidth=1.5;
@@ -1206,11 +1308,26 @@ function paintFft(spectrum,binHz,sampleRate,gain=1) {
     if(bin===first) plot.moveTo(x,y);
     else plot.lineTo(x,y);
     if(spectrum[bin]>spectrum[peak]) peak=bin;
+    if((!adaptive || spectrum[bin]-dbGain>=adaptive.floor[bin]+guitarBinMarginDb) &&
+       (notePeak===null || spectrum[bin]>spectrum[notePeak])) notePeak=bin;
   }
   plot.stroke();
-  fftFrame={spectrum,binHz,sampleRate,first,last,peak,gain};
-  const dbGain=20*Math.log10(gain);
+  fftFrame={spectrum,binHz,sampleRate,first,last,peak,gain,adaptive};
   const gainSign=dbGain>=0?"+":"";
+  ui.fftNoise.hidden=!adaptive;
+  if(adaptive){
+    const targetSign=adaptive.targetDb>=0?"+":"";
+    ui.fftNoise.textContent="Noise floor "+(adaptive.noiseDb+dbGain).toFixed(1)+" dB (blue) · "+
+      (adaptive.active ? "Target gain "+targetSign+adaptive.targetDb.toFixed(1)+" dB" : "Gain held");
+    plot.strokeStyle="#79c4ff";
+    plot.lineWidth=1;
+    plot.beginPath();
+    for(let bin=first;bin<=last;bin++){
+      const x=xFor(bin*binHz), y=yFor(adaptive.floor[bin]+dbGain);
+      if(bin===first) plot.moveTo(x,y); else plot.lineTo(x,y);
+    }
+    plot.stroke();
+  }
   const windowMs=(1000/binHz).toFixed(0);
   ui.fftSignal.textContent="Post-AGC spectrum · AGC "+gainSign+dbGain.toFixed(1)+" dB · "+windowMs+" ms window";
   if(selectedBin!==null) selectedBin=Math.max(first,Math.min(last,selectedBin));
@@ -1228,20 +1345,21 @@ function paintFft(spectrum,binHz,sampleRate,gain=1) {
     plot.strokeStyle="#88ceff";
     plot.beginPath();plot.moveTo(x,top);plot.lineTo(x,bottom);plot.stroke();
   }
-  if(spectrum[peak]>fftMinDb){
-    const midi=spectralPeakMidi(spectrum,peak,binHz);
+  if(notePeak!==null && spectrum[notePeak]>fftMinDb && (!adaptive || adaptive.active)){
+    const midi=spectralPeakMidi(spectrum,notePeak,binHz);
     const hz=440*2**((midi-69)/12);
     const note=Math.round(midi);
     const label=names[(note%12+12)%12]+(Math.floor(note/12)-1);
-    ui.fftReadout.textContent="Peak "+hz.toFixed(1)+" Hz · "+label+" · "+spectrum[peak].toFixed(1)+" dB · "+(sampleRate/1000).toFixed(1)+" kHz sample rate";
+    ui.fftReadout.textContent="Peak "+hz.toFixed(1)+" Hz · "+label+" · "+spectrum[notePeak].toFixed(1)+" dB · "+(sampleRate/1000).toFixed(1)+" kHz sample rate";
     plot.fillStyle="#a9e96b";
-    plot.beginPath();plot.arc(Math.min(right,Math.max(left,xFor(hz))),yFor(spectrum[peak]),3,0,Math.PI*2);plot.fill();
-  } else ui.fftReadout.textContent="No signal above "+fftMinDb+" dB.";
+    plot.beginPath();plot.arc(Math.min(right,Math.max(left,xFor(hz))),yFor(spectrum[notePeak]),3,0,Math.PI*2);plot.fill();
+  } else ui.fftReadout.textContent=adaptive ? "No note above the noise floor." : "No signal above "+fftMinDb+" dB.";
 }
 
 function resetFftPlot() {
   fftFrame=null;
   selectedBin=null;
+  ui.fftNoise.hidden=true;
   ui.fftSignal.textContent=mode==="midi" ? "MIDI input · AGC inactive" : "Post-AGC spectrum · Waiting for microphone";
   const [min,max]=fftRange();
   ui.fftBinReadout.textContent=min+"–"+max+" Hz · Move over the graph or tap a bar to inspect a bin.";
@@ -1279,6 +1397,52 @@ function updateInputGain(gain,level,now) {
   gain.setTargetAtTime(desired,now,desired>current?.24:.075);
 }
 
+const guitarPeakTargetDb=-10;
+
+function updateGuitarGain(state,gain,spectrum,binHz,now) {
+  if(state.floor?.length!==spectrum.length){
+    state.floor=new Float32Array(spectrum.length).fill(-93);
+    state.heldPeak=-Infinity;
+    state.active=false;
+  }
+  const current=gain.value;
+  const gainDb=20*Math.log10(current);
+  const first=Math.max(1,Math.ceil(guitarMinHz/binHz));
+  const last=Math.min(spectrum.length-1,Math.floor(guitarMaxHz/binHz));
+  let peak=-Infinity;
+  for(let bin=first;bin<=last;bin++){
+    const raw=spectrum[bin]-gainDb;
+    if(raw>state.floor[bin]+12) peak=Math.max(peak,raw);
+  }
+  const active=peak>-79;
+  if(!active && state.active){
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(current,now);
+  }
+  state.active=active;
+  state.noiseDb=-Infinity;
+  for(let bin=first;bin<=last;bin++){
+    const raw=Math.max(-120,spectrum[bin]-gainDb);
+    const difference=raw-state.floor[bin];
+    if(difference<=0 || !active || difference<7 || raw<peak-34){
+      const rate=difference<0?.10:active?.025:.16;
+      state.floor[bin]+=(active ? Math.min(difference,4) : difference)*rate;
+    }
+    state.noiseDb=Math.max(state.noiseDb,state.floor[bin]);
+  }
+  state.targetDb=gainDb;
+  if(!active){
+    state.heldPeak=-Infinity;
+    return;
+  }
+  state.heldPeak=Math.max(peak,state.heldPeak-1.3);
+  state.targetDb=Math.max(-6,Math.min(24,guitarPeakTargetDb-state.heldPeak));
+  if(Math.abs(state.targetDb-gainDb)>.55){
+    const target=10**(state.targetDb/20);
+    gain.setTargetAtTime(target,now,target>current?.25:.09);
+  }
+}
+
 async function startMic() {
   if(busy || mode) return;
   if(!navigator.mediaDevices?.getUserMedia) {
@@ -1298,6 +1462,7 @@ async function startMic() {
     const inputGain=connectMicrophoneInput(context,stream,analyser);
     let time=new Float32Array(analyser.fftSize);
     let spectrum=new Float32Array(analyser.frequencyBinCount);
+    const adaptive=instrument==="guitar" ? {} : null;
     mode="mic";
     if(calibration) drawCalibration("Ready. Strum the six open strings once.");
     for(const track of stream.getTracks()) track.addEventListener("ended",()=>{
@@ -1319,17 +1484,20 @@ async function startMic() {
       for(let index=time.length-1024;index<time.length;index++) power+=time[index]*time[index];
       const level=Math.sqrt(power/1024);
       const gain=inputGain.value;
-      updateInputGain(inputGain,level,context.currentTime);
-      const signalFloor=instrument==="guitar" && guitarProfile ? guitarProfile.signalFloor*gain : .0025;
-      if(level<signalFloor || level>Math.max(signalFloor*1.6,recentLevel*1.65)) micReattacked=true;
-      recentLevel=level*.6+recentLevel*.4;
       analyser.getFloatFrequencyData(spectrum);
       const binHz=context.sampleRate/analyser.fftSize;
-      paintFft(spectrum,binHz,context.sampleRate,gain);
-      if(calibration){collectCalibration(spectrum,binHz,level,performance.now(),gain);return;}
+      if(adaptive) updateGuitarGain(adaptive,inputGain,spectrum,binHz,context.currentTime);
+      else updateInputGain(inputGain,level,context.currentTime);
+      const signalFloor=adaptive ? guitarProfile?.signalFloor??.0006 : .0025;
+      const relativeLevel=adaptive ? level/gain : level;
+      if(relativeLevel<signalFloor || relativeLevel>Math.max(signalFloor*1.6,recentLevel*1.65)) micReattacked=true;
+      recentLevel=relativeLevel*.6+recentLevel*.4;
+      paintFft(spectrum,binHz,context.sampleRate,gain,adaptive);
+      if(adaptive) setLiveTuning(detectOpenTuning(spectrum,binHz,time,context.sampleRate,adaptive,gain));
+      if(calibration){collectCalibration(spectrum,binHz,level,performance.now(),gain,adaptive);return;}
       const frets=instrument==="guitar" ? target[3][shapeIndex].frets : null;
       const expected=frets && guitarProfile ? calibratedGuitarPitches(frets) : null;
-      let pitches=spectralPitches(spectrum,binHz,expected);
+      let pitches=spectralPitches(spectrum,binHz,expected,adaptive,gain);
       if(instrument==="guitar"){
         const heard=matchHeardNotes(pitches,frets,diagramStart,guitarProfile,gain);
         updateMeters(heard);
@@ -1338,7 +1506,7 @@ async function startMic() {
         setHeardPiano(level<.0025 ? [] : pianoSpectrumNotes(pitches));
       }
       if(advance) return;
-      if(level<signalFloor){stable=null;frames=0;return;}
+      if(adaptive ? !adaptive.active : level<signalFloor){stable=null;frames=0;return;}
       const detected=identify(spectrum,binHz,pitches,expected,instrument==="guitar" ? target : null,instrument==="guitar" ? guitarProfile : null,gain);
       frames=detected && detected===stable ? frames+1 : 1;
       stable=detected;
@@ -1425,6 +1593,13 @@ async function startMidi() {
 for(const id of Object.keys(levelDescriptions.guitar)) ui[id].onclick=()=>selectLevel(id);
 ui.homeButton.onclick=showIntro;
 ui.fullscreenToggle.onclick=toggleFullscreen;
+ui.target.onclick=tapFftShortcut;
+ui.target.onkeydown=event=>{
+  if(event.key==="Enter" || event.key===" "){
+    event.preventDefault();
+    if(!event.repeat) tapFftShortcut();
+  }
+};
 ui.fftDebug.ontoggle=()=>{if(mode!=="mic") resetFftPlot();};
 ui.fftCanvas.onpointerdown=selectFftBinAt;
 ui.fftCanvas.onpointermove=event=>{if(event.pointerType==="mouse") selectFftBinAt(event);};
