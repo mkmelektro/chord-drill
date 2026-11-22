@@ -39,7 +39,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 @media(max-width:600px){.intro-head{grid-template-columns:1fr}.share-qr{display:flex;align-items:center;max-width:none;text-align:left;gap:10px}.share-qr svg{width:111px;flex:0 0 111px}}
 .screen-status{font-size:.8rem;margin:6px 0 0}.screen-status[data-awake="true"]{color:var(--accent)}
 
-.calibration-title{font-size:clamp(2.2rem,7vw,4rem);letter-spacing:-.05em;margin:13px 0}.calibration-strings{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:20px 0}.calibration-strings span{display:grid;place-items:center;min-width:40px;padding:8px 4px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-weight:700}.calibration-strings .captured{border-color:var(--accent);color:var(--accent)}#calibrationStatus{min-height:2.6em}.quiz-stats{margin-top:10px}
+.calibration-title{font-size:clamp(2.2rem,7vw,4rem);letter-spacing:-.05em;margin:13px 0}.calibration-strings{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:20px 0}.calibration-strings>span{display:grid;place-items:center;min-width:40px;padding:8px 4px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-weight:700}.calibration-strings .captured{border-color:var(--accent);color:var(--accent)}#calibrationStatus{min-height:2.6em}.quiz-stats{margin-top:10px}
 
 :root{--wrong:#ff7d8d;--wrong-tint:#ff526855}.fretboard .string-meter:has(i[data-wrong=true]){background:#783744}.string-meter i[data-wrong=true]{background:var(--wrong)}.fretboard .heard-note.wrong-note{border-color:var(--wrong);background:var(--wrong-tint)}.diagram-legend .wrong-label::before{box-sizing:border-box;background:var(--wrong-tint);border:1px solid var(--wrong)}.staff .staff-heard .notehead.wrong-note{stroke:var(--wrong);fill:var(--wrong-tint)}.staff .staff-heard .accidental.wrong-note{fill:var(--wrong)}.piano-key.wrong-key::after{border-color:#c42e49;background:var(--wrong-tint)}.piano-key.wrong-key::before{content:"";z-index:2;position:absolute;width:min(14px,80%);aspect-ratio:1;left:50%;top:46%;transform:translate(-50%,-50%);border:2px solid #a31934;border-radius:50%;background:#ff9aa7}
 
@@ -55,6 +55,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 .fft-settings{display:flex;align-items:center;flex-wrap:wrap;gap:6px 9px;margin:8px 4px 0;color:var(--muted);font-size:.85rem}.fft-settings select{appearance:none;background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 14px center/5px 5px no-repeat,linear-gradient(135deg,currentColor 50%,transparent 50%) right 9px center/5px 5px no-repeat #2d3343;color:var(--ink);border:1px solid var(--line);border-radius:7px;font:inherit;padding:6px 24px 6px 8px}.fft-settings .fft-signal{flex-basis:100%;margin:2px 0 0;color:#a7d9f7}
 
 .fft-calibration ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));list-style:none;gap:6px;margin:7px 4px;padding:0}.fft-calibration li{display:flex;flex-direction:column;gap:3px;background:#2c3240;border-radius:6px;padding:6px;font-variant-numeric:tabular-nums;font-size:.78rem;color:#c6c9d3}.fft-calibration strong{color:var(--ink)}
+
+.calibration-strings{margin-top:41px}.calibration-strings>span{position:relative}.tune-slot{position:absolute;top:-29px;left:50%;transform:translateX(-50%);width:35px;height:24px;text-align:center;white-space:nowrap;pointer-events:none}.fretboard{margin-top:52px}.fretboard .tune-slot{top:-43px;transform:translateX(-50%);z-index:3}.tune-slot i{display:block;font-style:normal;line-height:13px;color:#ffac72;font-size:18px;transform:scale(var(--tune-scale,1));transition:transform .12s}.tune-slot small{display:block;font-size:9px;line-height:11px;color:#ffd2aa;font-variant-numeric:tabular-nums}.tune-slot.in-tune i,.tune-slot.in-tune small{color:var(--accent)}
 </style>
 <main id="appRoot">
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong><button id="fullscreenToggle" aria-pressed="false">Full screen</button></div>
@@ -142,7 +144,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <p id="resultScore"></p><p id="resultBest"></p>
 <div class="actions"><button id="replay">Play again</button><button id="resultSetup">Change mode</button></div>
 </section>
-<p class="foot" id="tip" hidden>Use standard tuning. Strum once per chord.</p>
+<p class="foot" id="tip" hidden>Use standard tuning. Pluck one open string to check its tuning, or strum once per chord.</p>
 </main>
 <script>
 "use strict";
@@ -569,6 +571,7 @@ function resetGuitarCalibration() {
   calibration=instrument==="guitar" ? {
     notes:Array(6).fill(null), noisePitches:new Float64Array(100), started:0, readyAfter:0, noise:0, peakLevel:0, previousLevel:0, message:""
   } : null;
+  setLiveTuning(null);
   if(calibration) drawCalibration("Connecting microphone…");
 }
 
@@ -583,7 +586,8 @@ function drawCalibration(message) {
   if(state.visible===visible) return;
   state.visible=visible;
   ui.calibrationStrings.innerHTML=openStringNames.map((name,index)=>
-    '<span class="'+(state.notes[index]?'captured':'')+'" aria-label="'+name+(state.notes[index]?' detected':' waiting')+'">'+name+'</span>').join("");
+    '<span class="'+(state.notes[index]?'captured':'')+'" aria-label="'+name+(state.notes[index]?' detected':' waiting')+'">'+name+tuningSlot(index)+'</span>').join("");
+  drawLiveTuning();
 }
 
 function spectralPeakMidi(spectrum,bin,binHz) {
@@ -616,6 +620,83 @@ function openStringPeaks(spectrum,binHz,adaptive=null,gain=1) {
     return best;
   });
 }
+let liveTuning=null;
+
+function tuningSlot(index,left="") {
+  return '<span class="tune-slot" data-string="'+index+'"'+(left?' style="left:'+left+'"':'')+'></span>';
+}
+
+function estimateOpenPitch(samples,sampleRate,note) {
+  const nominal=440*2**((note-69)/12);
+  const period=sampleRate/nominal;
+  const first=Math.floor(period/1.043), last=Math.ceil(period*1.043);
+  const end=samples.length;
+  const start=Math.max(last+1,end-2048);
+  function score(lag) {
+    let cross=0, a=0, b=0;
+    for(let index=start;index<end;index++){
+      const sample=samples[index], previous=samples[index-lag];
+      cross+=sample*previous;
+      a+=sample*sample;
+      b+=previous*previous;
+    }
+    return cross/Math.sqrt(a*b||1);
+  }
+  let best=first, strength=-1;
+  for(let lag=first;lag<=last;lag++){
+    const value=score(lag);
+    if(value>strength){strength=value;best=lag;}
+  }
+  if(strength<.85 || best===first || best===last) return null;
+  const left=score(best-1),right=score(best+1),curvature=2*strength-left-right;
+  const offset=curvature>0?.5*(right-left)/curvature:0;
+  return 1200*Math.log2(period/(best+offset));
+}
+
+function detectOpenTuning(spectrum,binHz,samples,sampleRate,adaptive,gain) {
+  if(!adaptive?.active) return null;
+  const candidates=openStringPeaks(spectrum,binHz,adaptive,gain)
+    .flatMap((peak,index)=>peak?[{...peak,index}]:[]).sort((a,b)=>b.amplitude-a.amplitude);
+  for(const candidate of candidates){
+    const fundamental=guitarTuning[candidate.index]+candidate.offset;
+    const hasOtherTone=candidates.some(other=>{
+      if(other===candidate || other.amplitude<candidate.amplitude*.35) return false;
+      const difference=guitarTuning[other.index]+other.offset-fundamental;
+      const harmonic=2**(difference/12);
+      return harmonic<1.8 || Math.abs(harmonic-Math.round(harmonic))>.09;
+    });
+    if(hasOtherTone) continue;
+    const cents=estimateOpenPitch(samples,sampleRate,guitarTuning[candidate.index]);
+    if(cents===null || Math.abs(cents)>70 || Math.abs(cents-candidate.offset*100)>30) continue;
+    return {index:candidate.index,cents};
+  }
+  return null;
+}
+
+function drawLiveTuning() {
+  const slots=[...ui.hint.querySelectorAll(".tune-slot"),...ui.calibrationStrings.querySelectorAll(".tune-slot")];
+  for(const slot of slots){
+    const tuning=liveTuning?.index===Number(slot.dataset.string)?liveTuning:null;
+    const cents=tuning?Math.round(tuning.cents):null;
+    const marker=cents===null?"":Math.abs(cents)<=3?"●":cents<0?"←":"→";
+    const heading=cents===null?"":(cents>0?"+":"")+cents+"¢";
+    const scale=Math.min(1.6,.68+Math.abs(cents||0)/55);
+    const markup=marker ? '<i style="--tune-scale:'+scale.toFixed(2)+'">'+marker+'</i><small>'+heading+'</small>' : "";
+    if(slot.innerHTML===markup) continue;
+    slot.innerHTML=markup;
+    slot.classList.toggle("in-tune",cents!==null && Math.abs(cents)<=3);
+    if(!marker) slot.removeAttribute("title");
+    else slot.title=heading+(Math.abs(cents)<=3?" · In tune":cents<0?" · Flat":" · Sharp");
+  }
+}
+
+function setLiveTuning(value) {
+  if(value && liveTuning?.index===value.index) value={index:value.index,cents:liveTuning.cents*.55+value.cents*.45};
+  if(!value && !liveTuning) return;
+  liveTuning=value;
+  drawLiveTuning();
+}
+
 function calibrationProfile(notes,peakLevel,noise,noisePitches=new Float64Array(100)) {
   const strongest=Math.max(...notes.map(note=>note?.amplitude||0));
   const missing=notes.map((note,index)=>!note || note.amplitude<Math.max(strongest*.025,noisePitches[guitarTuning[index]]*2.6) ? index : -1).filter(index=>index>=0);
@@ -738,12 +819,14 @@ function drawGuitar() {
     ? '<span class="fret-dot" style="left:'+column(index)+'%;top:'+row(fret)+'%">'+shape.fingers[index]+'</span>' : '').join("");
   const variation=practice==="barreSet" ? target[3].filter(option=>option.barre) : target[3];
   const bars=guitarTuning.map((_,index)=>'<span class="string-meter" style="left:'+column(index)+'%"><i></i></span>').join("");
-  ui.hint.innerHTML='<div class="fretboard '+(start===1?'open':'')+'" aria-hidden="true"><span class="fret-start" style="top:12.5%">'+start+'fr</span>'+bars+labels+strip+dots+'<div class="heard-layer"></div>'+
+  const tuner=guitarTuning.map((_,index)=>tuningSlot(index,column(index)+'%')).join("");
+  ui.hint.innerHTML='<div class="fretboard '+(start===1?'open':'')+'" aria-hidden="true"><span class="fret-start" style="top:12.5%">'+start+'fr</span>' +bars+labels+strip+dots+tuner+'<div class="heard-layer"></div>'+
     '</div><p class="diagram-caption">Low E to high E · '+frets.map(fret=>fret===null?'×':fret).join(' – ')+
     (bar?' · Barre fret '+bar[2]+' ('+shape.family+')':'')+'</p><div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span><span class="wrong-label">Wrong note</span></div>';
   meters=[...ui.hint.querySelectorAll(".string-meter i")];
   heardLayer=ui.hint.querySelector(".heard-layer");
   renderedHearing="";
+  drawLiveTuning();
   if(variation.length>1){
     const button=document.createElement("button");
     button.className="shape-button";
@@ -916,6 +999,7 @@ function stop() {
   stream?.getTracks().forEach(track=>track.stop());
   if(context?.state!=="closed") context?.close().catch(()=>{});
   stream=context=analyser=null;
+  setLiveTuning(null);
   if(midiAccess) {
     midiAccess.onstatechange=null;
     midiAccess=null;
@@ -965,7 +1049,7 @@ function switchInstrument(value) {
   count=0;
   streak=0;
   updateScore();
-  ui.tip.textContent=value==="guitar" ? "Use standard tuning. Strum once per chord." : "Play the chord tones together in any inversion. Release the keys between chords when using MIDI.";
+  ui.tip.textContent=value==="guitar" ? "Use standard tuning. Pluck one open string to check its tuning, or strum once per chord." : "Play the chord tones together in any inversion. Release the keys between chords when using MIDI.";
   showSetup();
   ui.setupTitle.focus();
 }
@@ -1396,6 +1480,7 @@ async function startMic() {
       if(relativeLevel<signalFloor || relativeLevel>Math.max(signalFloor*1.6,recentLevel*1.65)) micReattacked=true;
       recentLevel=relativeLevel*.6+recentLevel*.4;
       paintFft(spectrum,binHz,context.sampleRate,gain,adaptive);
+      if(adaptive) setLiveTuning(detectOpenTuning(spectrum,binHz,time,context.sampleRate,adaptive,gain));
       if(calibration){collectCalibration(spectrum,binHz,level,performance.now(),gain,adaptive);return;}
       const frets=instrument==="guitar" ? target[3][shapeIndex].frets : null;
       const expected=frets && guitarProfile ? calibratedGuitarPitches(frets) : null;
