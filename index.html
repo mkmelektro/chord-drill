@@ -57,6 +57,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 .fft-calibration ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));list-style:none;gap:6px;margin:7px 4px;padding:0}.fft-calibration li{display:flex;flex-direction:column;gap:3px;background:#2c3240;border-radius:6px;padding:6px;font-variant-numeric:tabular-nums;font-size:.78rem;color:#c6c9d3}.fft-calibration strong{color:var(--ink)}
 
 .calibration-strings{margin-top:41px}.calibration-strings>span{position:relative}.tune-slot{position:absolute;top:-29px;left:50%;transform:translateX(-50%);width:35px;height:24px;text-align:center;white-space:nowrap;pointer-events:none}.fretboard{margin-top:52px}.fretboard .tune-slot{top:-43px;transform:translateX(-50%);z-index:3}.tune-slot i{display:block;font-style:normal;line-height:13px;color:#ffac72;font-size:18px;transform:scale(var(--tune-scale,1));transition:transform .12s}.tune-slot small{display:block;font-size:9px;line-height:11px;color:#ffd2aa;font-variant-numeric:tabular-nums}.tune-slot.in-tune i,.tune-slot.in-tune small{color:var(--accent)}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.music-icon{font:4.3rem/1 system-ui}.song-screen h2{color:var(--ink);font-size:clamp(2.3rem,7vw,4rem);margin:24px 0 16px}.song-form{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}.song-form input,.song-editor textarea{min-width:0;flex:1 1 170px;background:#181d29;border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;padding:10px}.song-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px;margin:12px 0}.song-result{display:grid;gap:3px;text-align:left}.song-result span{font-weight:400;color:var(--muted);font-size:.9rem}.song-links{display:flex;align-items:center;gap:9px 15px;flex-wrap:wrap;margin-top:12px}.song-links a,.song-player a{color:#a7d9f7}.song-editor,.song-player{margin-top:14px;text-align:left}.song-editor textarea{display:block;resize:vertical;width:100%;margin:10px 0}.song-notation,.song-details{display:block;margin:12px 0}.song-details summary{width:auto;margin:0}.song-player iframe{display:block;border:0;width:min(100%,420px);min-height:200px;aspect-ratio:16/9;border-radius:8px;margin-bottom:6px}.song-player h3{margin:0 0 8px}.song-player p:empty,.song-screen p:empty{display:none}.song-primary,#songReplay{background:var(--accent);color:#18220d;border-color:var(--accent)}.song-guide{border:1px solid var(--line);border-radius:12px;text-align:left;padding:12px;margin:12px auto;max-width:600px}.song-guide h3,.song-guide p{margin:0 0 6px}.song-sheet{max-height:156px;overflow:auto;position:relative;line-height:1.8}.song-lyric-line{white-space:pre-wrap;min-height:.7em}.song-step{display:inline-block;color:#add7ff;border-radius:5px;padding:0 4px;font-size:.83rem;font-weight:700;margin:0 2px}.song-step[aria-current=step]{background:var(--accent);color:#18220d}
 </style>
 <main id="appRoot">
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong><button id="fullscreenToggle" aria-pressed="false">Full screen</button></div>
@@ -68,6 +70,42 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <button class="instrument-card guitar-card" id="guitar"><span class="guitar-icon" aria-hidden="true"><i></i><i></i><i></i></span><span>Guitar</span></button>
 <button class="instrument-card piano-card" id="piano"><span class="piano-icon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span>Piano</span></button>
 </div>
+</section>
+<section class="time-screen" id="instrumentMode" hidden aria-labelledby="instrumentModeTitle">
+<h2 id="instrumentModeTitle" tabindex="-1"></h2>
+<div class="mode-cards">
+<button class="mode-card unlimited-card" id="practiceChoice"><span class="mode-icon music-icon" aria-hidden="true">♩</span><span class="mode-name">Chord Practice</span><span class="mode-description">Practice a set of chords on its own.</span></button>
+<button class="mode-card rush-card" id="songChoice"><span class="mode-icon music-icon" aria-hidden="true">♫</span><span class="mode-name">Play a Song</span><span class="mode-description">Follow the chords in a song.</span></button>
+</div>
+</section>
+<section class="song-screen" id="songSearch" hidden aria-labelledby="songSearchTitle">
+<h2 id="songSearchTitle">Find a song</h2>
+<form id="songSearchForm" class="song-form"><label class="sr-only" for="songQuery">Song title or artist</label><input id="songQuery" type="search" placeholder="Song title or artist" maxlength="120"><button type="submit">Search</button></form>
+<p id="songSearchStatus" role="status"></p>
+<div class="song-grid" id="songResults"></div>
+<div class="song-links"><a id="songPesmarica" target="_blank" rel="noopener noreferrer" hidden>Search Pesmarica</a><a id="songGoogle" target="_blank" rel="noopener noreferrer" hidden>Search chords on Google</a><button id="songManual" hidden>Use this title</button><button id="songModeBack">Back to modes</button></div>
+</section>
+<section class="song-screen" id="songSetup" hidden aria-labelledby="songName">
+<h2 id="songName" tabindex="-1"></h2><p id="songArtist"></p>
+<div class="card song-editor">
+<label for="songSheetInput">Chords and lyrics</label>
+<textarea id="songSheetInput" rows="7" maxlength="80000" spellcheck="false" placeholder="[Am]First line… or paste chords on their own lines."></textarea>
+<label class="song-notation"><input id="germanChords" type="checkbox"> H = B, B = B♭ (regional notation)</label>
+<p id="chartStatus" role="status"></p>
+<div class="song-links"><a id="chartPesmarica" target="_blank" rel="noopener noreferrer">Pesmarica</a><a id="chartGoogle" target="_blank" rel="noopener noreferrer">Find charts on Google</a><a id="chartSource" target="_blank" rel="noopener noreferrer" hidden>Chart source</a></div>
+<details class="song-details"><summary>Import from a chart URL</summary>
+<div class="song-form"><label class="sr-only" for="chartUrl">Public chart URL</label><input id="chartUrl" type="url" placeholder="https://…" maxlength="1500"><button id="importChart">Import chart</button></div>
+</details>
+<div class="song-links"><button id="songEditorBack">Find another song</button><button class="song-primary" id="startSong">Play song</button></div>
+</div>
+</section>
+<section class="card song-player" id="songPlayer" hidden aria-labelledby="songVideoTitle">
+<h3 id="songVideoTitle">YouTube</h3><p>Use headphones when playing along with the microphone.</p>
+<div id="songVideoWrap" hidden><iframe id="songVideo" title="YouTube song player" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe> <a id="songWatch" target="_blank" rel="noopener noreferrer">Watch on YouTube</a></div>
+<div class="song-form"><label class="sr-only" for="videoUrl">YouTube video link</label><input id="videoUrl" type="url" placeholder="Paste a YouTube link" maxlength="1500"><button id="loadVideo">Load video</button></div>
+<div class="song-links"><a id="videoSearchLink" target="_blank" rel="noopener noreferrer">Search on YouTube</a></div>
+<details class="song-details"><summary>Search YouTube here</summary><div class="song-form"><label class="sr-only" for="youtubeKey">YouTube Data API key</label><input id="youtubeKey" type="password" placeholder="YouTube Data API key" autocomplete="off" spellcheck="false"><button id="findVideos">Find videos</button></div><div class="song-grid" id="songVideoResults"></div></details>
+<p id="songVideoStatus" role="status"></p>
 </section>
 <section class="card setup" id="setup" aria-labelledby="setupTitle">
 <h2 id="setupTitle" tabindex="-1">Choose your chords</h2>
@@ -118,6 +156,9 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <div class="stats quiz-stats"><span>Correct <b id="score">0</b></span><span>Streak <b id="streak">0</b></span><span id="timedStats" hidden>Time <b id="clock">1:00</b> · Best <b id="best">0</b></span></div>
 <div>Play this chord</div><h2 id="target" tabindex="-1"></h2>
 <div id="status" role="status" aria-live="polite"></div>
+<div class="song-guide" id="songGuide" hidden>
+<h3 id="songGuideTitle"></h3><p id="songProgress"></p><div id="songGuideSheet" class="song-sheet"></div>
+</div>
 <div class="voicing" id="voicing" hidden></div>
 <details id="details"><summary>Show fingering</summary><div class="hint" id="hint"></div></details>
 <div class="actions"><button id="retryInput" hidden>Reconnect input</button><button id="stop" hidden>Stop input</button><button id="skip">Skip chord</button><button id="editSelection">Change chords</button></div>
@@ -139,6 +180,9 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <ul id="fftStringLevels"></ul>
 </div>
 </details>
+<section class="card results" id="songEnd" hidden aria-labelledby="songEndTitle">
+<h2 id="songEndTitle" tabindex="-1">Song complete</h2><p id="songEndScore"></p><div class="actions"><button id="songReplay">Play again</button><button id="songEndBack">Edit song</button></div>
+</section>
 <section class="card results" id="results" hidden aria-labelledby="resultsTitle">
 <h2 id="resultsTitle" tabindex="-1">Time’s up</h2>
 <p id="resultScore"></p><p id="resultBest"></p>
@@ -341,7 +385,7 @@ const keyboardStart=60, keyboardEnd=84;
 function pianoVoicing(chord) {
   const [,root,notes,,position]=chord;
   const base=keyboardStart+root;
-  const stack=notes.map(note=>base+(note-root+12)%12);
+  const stack=(songRun ? orderedSongTones(chord) : notes).map(note=>base+(note-root+12)%12);
   const voicing=stack.slice(position).concat(stack.slice(0,position).map(note=>note+12));
   return voicing.at(-1)>=keyboardEnd ? voicing.map(note=>note-12) : voicing;
 }
@@ -349,6 +393,7 @@ function pianoVoicing(chord) {
 function pianoGrip(chord) {
   const [,root,,,position]=chord;
   const ordered=pianoVoicing(chord);
+  if(songRun) return ordered.map(midi=>names[midi%12]+(Math.floor(midi/12)-1));
   const letterNames=["C","D","E","F","G","A","B"];
   const naturals=[0,2,4,5,7,9,11];
   const rootLetter=letterNames.indexOf(names[root]);
@@ -417,7 +462,7 @@ function drawKeyboard(chord,grip,heard=[]) {
 
 function drawPiano() {
   const grip=pianoGrip(target);
-  const label=positionLabels[target[4]];
+  const label=positionLabels[target[4]]||"Third inversion";
   const spelling=new Map(pianoVoicing(target).map((midi,index)=>[midi%12,grip[index].slice(0,-1)]));
   const heard=heardPiano.map(midi=>(spelling.get(midi%12)||names[midi%12])+(Math.floor(midi/12)-1));
   const wrongNotes=new Set(heard.filter((_,index)=>!target[2].includes(heardPiano[index]%12)));
@@ -539,9 +584,14 @@ function beginQuiz(seconds) {
     if(ui.secondInversion.checked) positions.push(2);
     quizChords=quizChords.flatMap(chord=>positions.map(position=>[...chord,position]));
   }
+  songRun=null;
+  startRound(seconds);
+}
+
+function startRound(seconds) {
   endRoundClock();
   roundSeconds=seconds;
-  recordKey="chord-drill:best:"+JSON.stringify([instrument,roundSeconds,roundSeconds>0,quizChords.map(chord=>chord[0]+"/"+(chord[4]??"")).sort()]);
+  recordKey=roundSeconds ? "chord-drill:best:"+JSON.stringify([instrument,roundSeconds,true,quizChords.map(chord=>chord[0]+"/"+(chord[4]??"")).sort()]) : "";
   recordBefore=roundSeconds ? bestScore(recordKey) : 0;
   ui.best.textContent=recordBefore;
   showClock();
@@ -549,6 +599,7 @@ function beginQuiz(seconds) {
   fftUnlocked=false;
   deck=[];
   target=null;
+  if(songRun) songRun.index=-1;
   count=0;
   streak=0;
   updateScore();
@@ -911,6 +962,14 @@ function controls() {
   syncFullscreenButton();
   ui.homeButton.disabled=busy;
   ui.setup.hidden=screen!=="setup";
+  ui.instrumentMode.hidden=screen!=="instrumentMode";
+  ui.songSearch.hidden=screen!=="songSearch";
+  ui.songSetup.hidden=screen!=="songSetup";
+  ui.songEnd.hidden=screen!=="songEnd";
+  ui.songGuide.hidden=!songRun;
+  ui.songPlayer.hidden=screen!=="songSetup" && screen!=="songEnd" && !(playing && songRun);
+  ui.editSelection.textContent=songRun ? "Edit song" : "Change chords";
+  ui.leaveCalibration.textContent=songRun ? "Edit song" : "Change chords";
   ui.timeScreen.hidden=screen!=="time";
   ui.results.hidden=screen!=="results";
   ui.tip.hidden=screen!=="quiz";
@@ -937,6 +996,14 @@ function nextChord() {
   stable=null;
   frames=0;
   ui.details.open=false;
+  if(songRun){
+    songRun.index++;
+    const step=songRun.chart.steps[songRun.index];
+    if(!step){finishSong();return;}
+    target=songStepTarget(step);
+    ui.target.textContent=step.label;
+    renderSongGuide();
+  } else {
   if(!deck.length) {
     deck=[...quizChords];
     for(let index=deck.length-1;index>0;index--) {
@@ -947,8 +1014,9 @@ function nextChord() {
   }
   target=deck.pop();
   ui.target.textContent=target[0];
+  }
   if(instrument==="guitar") {
-    shapeIndex=practice==="barreSet" ? target[3].findIndex(shape=>shape.barre) : 0;
+    shapeIndex=!songRun && practice==="barreSet" ? target[3].findIndex(shape=>shape.barre) : 0;
     ui.details.open=true;
     drawGuitar();
   } else {
@@ -1053,6 +1121,8 @@ function stop() {
 const instrumentLevels=new Map();
 function showIntro() {
   if(busy) return;
+  leaveSongRun();
+  clearSongVideo();
   screen="intro";
   playing=false;
   calibration=null;
@@ -1070,8 +1140,7 @@ function switchInstrument(value) {
   streak=0;
   updateScore();
   ui.tip.textContent=value==="guitar" ? "Use standard tuning. Pluck one open string to check its tuning, or strum once per chord." : "Play the chord tones together in any inversion. Release the keys between chords when using MIDI.";
-  showSetup();
-  ui.setupTitle.focus();
+  showInstrumentMenu();
 }
 function spectralPitches(spectrum,binHz,expected=null,adaptive=null,gain=1) {
   const pitches=new Float64Array(100);
@@ -1116,16 +1185,18 @@ function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz),expecte
   const share=chroma.map(value=>value/total);
   const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
   const bass=pitches.findIndex(value=>value>=strongest*.22)%12;
-  for(const [name,root,notes] of guitar ? guitarChords : chords) {
+  for(const [name,root,notes] of guitar || songRun ? guitarChords : chords) {
     const weights=notes.map(note=>share[note]);
     const weakest=Math.min(...weights);
     if(weakest<(notes.length===4?.054:.065)) continue;
     const coverage=weights.reduce((sum,weight)=>sum+weight,0);
-    if(notes.length===2 && (coverage<.85 || bass!==root)) continue;
+    if(notes.length===2 && (coverage<.85 || (guitar && bass!==root))) continue;
     ranked.push([name,coverage+weakest*.12+(guitar && bass===root?.075:0)]);
   }
   ranked.sort((a,b)=>b[1]-a[1]);
   if(guitar && prompt && closeGuitarChord(prompt,share,bass,ranked[0]?.[1]||0)) return prompt[0];
+  const requested=!guitar && songRun && ranked.find(([name])=>name===prompt?.[0]);
+  if(requested && requested[1]>=.76 && ranked[0][1]-requested[1]<.021) return requested[0];
   if(!ranked.length || ranked[0][1]<.69 || ranked[0][1]-(ranked[1]?.[1]??0)<(guitar?.029:.045)) return null;
   return ranked[0][0];
 }
@@ -1525,7 +1596,7 @@ async function startMic() {
       }
       if(advance) return;
       if(adaptive ? !adaptive.active : level<signalFloor){stable=null;frames=0;return;}
-      const detected=identify(spectrum,binHz,pitches,expected,instrument==="guitar" ? target : null,instrument==="guitar" ? guitarProfile : null,gain);
+      const detected=identify(spectrum,binHz,pitches,expected,instrument==="guitar" || songRun ? target : null,instrument==="guitar" ? guitarProfile : null,gain);
       frames=detected && detected===stable ? frames+1 : 1;
       stable=detected;
       if(detected && frames>=3 && canGradeMic(detected)) {
@@ -1561,9 +1632,10 @@ function handleMidi(event) {
 }
 function checkMidiChord() {
   const heard=new Set([...keys.values()].map(value=>value%12));
-  const match=chords.find(chord=>heard.size===3 && chord[2].every(value=>heard.has(value)));
+  const matches=chord=>heard.size===chord[2].length && chord[2].every(value=>heard.has(value));
+  const match=songRun && matches(target) ? target : (songRun?guitarChords:chords).find(matches);
   if(match) answer(match[0]);
-  else if(heard.size>=3) answer([...heard].map(value=>names[value]).join(" · "));
+  else if(heard.size>=(songRun?target[2].length:3)) answer([...heard].map(value=>names[value]).join(" · "));
 }
 async function startMidi() {
   if(!navigator.requestMIDIAccess) return false;
@@ -1637,12 +1709,12 @@ ui.begin.onclick=showTimeSetup;
 ui.unlimited.onclick=()=>beginQuiz(0);
 ui.startRush.onclick=()=>beginQuiz(Number(ui.duration.value));
 ui.backToChords.onclick=()=>{showSetup();ui.setupTitle.focus();};
-ui.editSelection.onclick=()=>{showSetup(); ui.selectAll.focus();};
+ui.editSelection.onclick=()=>{if(songRun) returnToSong(); else {showSetup(); ui.selectAll.focus();}};
 ui.guitar.onclick=()=>switchInstrument("guitar");
 ui.piano.onclick=()=>switchInstrument("piano");
 ui.retryInput.onclick=ui.retryCalibrationInput.onclick=connectInput;
 ui.skipCalibration.onclick=()=>finishCalibration();
-ui.leaveCalibration.onclick=()=>{showSetup();ui.setupTitle.focus();};
+ui.leaveCalibration.onclick=()=>{if(songRun) returnToSong(); else {showSetup();ui.setupTitle.focus();}};
 ui.stop.onclick=stop;
 ui.skip.onclick=()=>{if(!advance) streak=0;updateScore();nextChord();};
 document.addEventListener("fullscreenchange",syncFullscreenButton);
@@ -1659,6 +1731,389 @@ window.addEventListener("pagehide",()=>{
   if(feedbackAudio && feedbackAudio.state!=="closed") feedbackAudio.close().catch(()=>{});
   feedbackAudio=null;
 });
+function orderedSongTones(chord) {
+  const root=chord[1];
+  return [...chord[2]].sort((a,b)=>(a-root+12)%12-(b-root+12)%12);
+}
+const songCatalog=[
+  {title:"Ajde Jano",artist:"Narodne pesme",video:"RINL0mqSy74",source:"https://www.pesmarica.rs/akordi/7572/Narodne-pesme--Ajde-Jano",sheet:`[Em]Ajde Jano, [A7]kolo da [D]igramo
+[G]Ajde Jano, [Am]ajde dušo, [Em]kolo da [A7]igramo [C][B7][Em]`},
+  {title:"Tamo daleko",artist:"Narodne pesme",video:"JlvS-azEgN4",source:"https://www.pesmarica.rs/akordi/6492/Narodne-pesme--Tamo-daleko",sheet:`[Am]Tamo, [F]daleko, [C]daleko [G]od [C]mora, [E]
+[Am]tamo je selo [Dm]moje, [E]tamo je [E7]Srbija. [Am]`},
+  {title:"Amazing Grace",artist:"John Newton · Traditional",video:"Ytnb2pIg_NE",source:"https://library.timelesstruths.org/music/Amazing_Grace/",sheet:`[G]Amazing grace, how [C]sweet the [G]sound,
+That [Em]saved a wretch like [D]me.
+I [G]once was lost, but [C]now am [G]found,
+Was blind, but [D]now I [G]see.`},
+  {title:"When the Saints Go Marching In",artist:"Traditional",video:"EojRPDcGZoo",source:"https://www.hymnary.org/text/o_when_the_saints_go_marching_in",sheet:`[C]Oh, when the saints go marching in,
+Oh, when the saints go marching [G7]in,
+Oh Lord, I [C]want to be [F]in that number,
+When the [C]saints go [G7]marching [C]in.`},
+  {title:"Twinkle, Twinkle, Little Star",artist:"Jane Taylor · Traditional",video:"LQy_lBDKoik",sheet:`[C]Twinkle, twinkle, [F]little [C]star,
+[F]How I [C]wonder [G7]what you [C]are.
+[C]Up a[F]bove the [C]world so [G7]high,
+[C]Like a [F]diamond [C]in the [G7]sky.
+[C]Twinkle, twinkle, [F]little [C]star,
+[F]How I [C]wonder [G7]what you [C]are.`}
+];
+let songSelection=null, songRun=null, songResultsSerial=0;
+const chordSymbols=/^[A-H](?:#|b|♯|♭|is|es|s)?(?:maj7|M7|Maj7|madd9|min7|m7|min|m|sus2|sus4|sus|add9|dim|aug|[0-9]+|\+|°)?(?:\/[A-H](?:#|b|♯|♭|is|es|s)?)?$/;
+const songNormalize=value=>value.normalize("NFD").replace(/\p{Diacritic}/gu,"").replace(/đ/gi,"d").toLowerCase().replace(/[^\p{L}\p{N}]+/gu," ").trim();
+function songChord(symbol,german=false) {
+  const base=symbol.split("/")[0].replace(/♯/g,"#").replace(/♭/g,"b");
+  const [,letter,accidental="",suffix=""]=base.match(/^([A-H])(is|es|#|b|s)?(.*)$/)||[];
+  if(!letter) return null;
+  const naturals={C:0,D:2,E:4,F:5,G:7,A:9,B:german?10:11,H:11};
+  const alteration=accidental==="#" || accidental==="is" ? 1 : accidental ? -1 : 0;
+  const root=(naturals[letter]+alteration+12)%12;
+  const quality={M7:"maj7",Maj7:"maj7",min:"m",min7:"m7",sus:"sus4","+":"aug","°":"dim"}[suffix]??suffix;
+  return guitarChords.find(chord=>chord[0]===guitarRoots[root]+quality)||null;
+}
+
+function parseSongSheet(text,german=false) {
+  const rows=[], steps=[], unsupported=new Set();
+  const addChord=(row,label)=>{
+    const chord=songChord(label,german);
+    if(!chord){unsupported.add(label);row.push({text:"["+label+"]"});return;}
+    const index=steps.length;
+    steps.push({chord,label,line:rows.length});
+    row.push({label,index});
+  };
+  for(const line of text.slice(0,80000).split(/\r?\n/).slice(0,600)){
+    if(/^\s*\{[^}]*\}\s*$/.test(line)) continue;
+    const row=[];
+    const tokens=[...line.matchAll(/\[([^\]]{1,24})\]/g)].filter(token=>chordSymbols.test(token[1].trim()));
+    if(tokens.length){
+      let offset=0;
+      for(const match of tokens){
+        if(match.index>offset) row.push({text:line.slice(offset,match.index)});
+        addChord(row,match[1].trim());
+        offset=match.index+match[0].length;
+      }
+      if(line.length>offset) row.push({text:line.slice(offset)});
+    } else {
+      const rowText=line.trim().replace(/^(intro|outro|uvod|ref|chorus|verse|strofa)\s*:\s*/i,"");
+      const words=rowText.split(/[\s|,–-]+/).filter(Boolean);
+      if(words.length && words.every(word=>chordSymbols.test(word))){
+        const prefix=line.trim().slice(0,line.trim().length-rowText.length);
+        if(prefix) row.push({text:prefix+" "});
+        for(const word of words) addChord(row,word);
+      } else row.push({text:line});
+    }
+    rows.push(row);
+  }
+  return {rows,steps,unsupported:[...unsupported]};
+}
+
+function showInstrumentMenu() {
+  screen="instrumentMode";
+  ui.instrumentModeTitle.textContent=instrument==="guitar"?"Guitar":"Piano";
+  controls();
+  ui.instrumentModeTitle.focus();
+}
+
+function showSongSearch() {
+  leaveSongRun();
+  latestTrackQuery++;
+  screen="songSearch";
+  controls();
+  renderSongResults(songCatalog,"");
+  ui.songQuery.value="";
+  ui.songSearchStatus.textContent="";
+  ui.songQuery.focus();
+}
+
+function googleSongUrl(query,domestic=false) {
+  const search=domestic ? query+" akordi site:pesmarica.rs" : query+" chords lyrics";
+  return "https://www.google.com/search?"+new URLSearchParams({q:search});
+}
+
+function searchTrackCatalog(query) {
+  return new Promise((resolve,reject)=>{
+    const callback="chordDrillTracks"+(++songResultsSerial);
+    const script=document.createElement("script");
+    const timeout=setTimeout(()=>finish(Error("Track search timed out")),9000);
+    function finish(error,results){
+      clearTimeout(timeout);
+      delete window[callback];
+      script.remove();
+      if(error) reject(error); else resolve(results);
+    }
+    window[callback]=data=>finish(null,Array.isArray(data?.results)?data.results:[]);
+    script.onerror=()=>finish(Error("Track search unavailable"));
+    script.src="https://itunes.apple.com/search?"+new URLSearchParams({
+      term:query,media:"music",entity:"song",country:"US",limit:14,callback
+    });
+    document.head.append(script);
+  });
+}
+
+function renderSongResults(results,query) {
+  ui.songResults.replaceChildren();
+  for(const result of results){
+    const button=document.createElement("button");
+    button.type="button";
+    button.className="song-result";
+    const title=document.createElement("strong");
+    title.textContent=result.title;
+    const artist=document.createElement("span");
+    artist.textContent=result.artist;
+    button.append(title,artist);
+    button.onclick=()=>openSong(result);
+    ui.songResults.append(button);
+  }
+  ui.songGoogle.hidden=!query;
+  ui.songPesmarica.hidden=!query;
+  ui.songManual.hidden=!query;
+  if(query){
+    ui.songGoogle.href=googleSongUrl(query);
+    ui.songPesmarica.href=googleSongUrl(query,true);
+    ui.songManual.onclick=()=>openSong({title:query,artist:""});
+  }
+}
+
+let latestTrackQuery=0;
+async function submitSongSearch(event) {
+  event.preventDefault();
+  const query=ui.songQuery.value.trim();
+  const serial=++latestTrackQuery;
+  if(!query){renderSongResults(songCatalog,"");ui.songSearchStatus.textContent="";return;}
+  const words=songNormalize(query).split(" ").filter(Boolean);
+  const matches=songCatalog.filter(song=>words.every(word=>songNormalize(song.title+" "+song.artist).includes(word)));
+  renderSongResults(matches,query);
+  ui.songSearchStatus.textContent="Searching online…";
+  try {
+    const rows=await searchTrackCatalog(query);
+    if(serial!==latestTrackQuery || screen!=="songSearch") return;
+    const seen=new Set(matches.map(song=>songNormalize(song.title)));
+    const results=[...matches];
+    for(const row of rows){
+      if(typeof row.trackName!=="string" || typeof row.artistName!=="string") continue;
+      const key=songNormalize(row.trackName);
+      if(seen.has(key)) continue;
+      seen.add(key);
+      results.push({title:row.trackName,artist:row.artistName});
+    }
+    renderSongResults(results,query);
+    ui.songSearchStatus.textContent=results.length ? results.length+" songs found" : "No catalog match. Try Pesmarica or use this title.";
+  } catch {
+    if(serial===latestTrackQuery && screen==="songSearch")
+      ui.songSearchStatus.textContent="Online catalog unavailable. You can still search chord sources or use this title.";
+  }
+}
+
+function videoId(value) {
+  if(/^[\w-]{11}$/.test(value)) return value;
+  try {
+    const url=new URL(value);
+    if(url.protocol!=="https:" && url.protocol!=="http:") return "";
+    const host=url.hostname.toLowerCase();
+    const parts=url.pathname.split("/").filter(Boolean);
+    const id=host==="youtu.be" ? parts[0] :
+      ["youtube.com","www.youtube.com","m.youtube.com","www.youtube-nocookie.com"].includes(host)
+        ? (url.searchParams.get("v") || (["embed","shorts","live"].includes(parts[0])?parts[1]:"")) : "";
+    return /^[\w-]{11}$/.test(id||"")?id:"";
+  } catch {return "";}
+}
+
+function setSongVideo(id) {
+  if(!videoId(id) || songSelection?.videoId===id) return;
+  songSelection.videoId=id;
+  ui.songVideo.src="https://www.youtube-nocookie.com/embed/"+id+"?rel=0";
+  ui.songWatch.href="https://www.youtube.com/watch?v="+id;
+  ui.songVideoWrap.hidden=false;
+  ui.songVideoStatus.textContent="";
+}
+
+async function findSongVideos() {
+  const expected=songSelection;
+  const key=ui.youtubeKey.value.trim();
+  if(!key){ui.songVideoStatus.textContent="Enter a YouTube Data API key, or open YouTube search and paste a video link.";return;}
+  const query=[expected.title,expected.artist].filter(Boolean).join(" ");
+  ui.songVideoStatus.textContent="Looking for embeddable videos…";
+  ui.songVideoResults.replaceChildren();
+  try {
+    const url=new URL("https://www.googleapis.com/youtube/v3/search");
+    url.search=new URLSearchParams({key,q:query,part:"snippet",type:"video",videoEmbeddable:"true",maxResults:5});
+    const response=await fetch(url,{signal:AbortSignal.timeout(9000)});
+    if(!response.ok) throw Error("YouTube search failed");
+    const json=await response.json();
+    if(songSelection!==expected) return;
+    for(const item of json.items||[]){
+      const id=videoId(item.id?.videoId||"");
+      if(!id) continue;
+      const button=document.createElement("button");
+      button.type="button";
+      button.textContent=item.snippet?.title||"Play video";
+      button.onclick=()=>setSongVideo(id);
+      ui.songVideoResults.append(button);
+    }
+    ui.songVideoStatus.textContent=ui.songVideoResults.childElementCount?"Choose a video.":"No embeddable results. Try a YouTube link.";
+  } catch {
+    if(songSelection===expected) ui.songVideoStatus.textContent="YouTube search unavailable. Check the API key or paste a video link.";
+  }
+}
+
+async function importSongChart() {
+  const expected=songSelection;
+  const source=ui.chartUrl.value.trim();
+  try {
+    const url=new URL(source);
+    if(url.protocol!=="https:" || url.username || url.password) throw Error("Use a public HTTPS chart URL.");
+    ui.chartStatus.textContent="Loading chart…";
+    const response=await fetch(url,{credentials:"omit",signal:AbortSignal.timeout(8500)});
+    if(!response.ok) throw Error("The source did not return a chart. Paste the chord sheet instead.");
+    if(Number(response.headers.get("content-length"))>2000000) throw Error("This chart page is too large to import. Paste its chord sheet instead.");
+    const text=await response.text();
+    if(text.length>2000000) throw Error("This chart page is too large to import. Paste its chord sheet instead.");
+    if(songSelection!==expected) return;
+    const isHtml=(response.headers.get("content-type")||"").includes("html") || /^\s*<!doctype html/i.test(text);
+    const chart=isHtml
+      ? [...new DOMParser().parseFromString(text,"text/html").querySelectorAll("pre,[data-chordpro]")]
+          .map(node=>node.textContent).find(value=>parseSongSheet(value,ui.germanChords.checked).steps.length>=2)
+      : text;
+    if(!chart || !parseSongSheet(chart,ui.germanChords.checked).steps.length)
+      throw Error("No recognizable chord lines found. Paste the chord sheet instead.");
+    ui.songSheetInput.value=chart.slice(0,80000);
+    updateSongSheet();
+  } catch(error) {
+    if(songSelection===expected) ui.chartStatus.textContent=error instanceof TypeError || error.name==="TimeoutError"
+      ? "This source does not allow direct browser import. Open it and paste the chart." : error.message;
+  }
+}
+
+function clearSongVideo() {
+  ui.songVideo.removeAttribute("src");
+  ui.songVideoWrap.hidden=true;
+  ui.songVideoResults.replaceChildren();
+}
+
+function openSong(result) {
+  songSelection={...result,videoId:""};
+  screen="songSetup";
+  ui.songName.textContent=result.title;
+  ui.songArtist.textContent=result.artist||"";
+  ui.songSheetInput.value=result.sheet||"";
+  ui.chartUrl.value="";
+  ui.germanChords.checked=false;
+  ui.videoUrl.value="";
+  ui.songVideoStatus.textContent="";
+  clearSongVideo();
+  const query=[result.title,result.artist].filter(Boolean).join(" ");
+  ui.chartGoogle.href=googleSongUrl(query);
+  ui.chartPesmarica.href=result.source?.includes("pesmarica.rs") ? result.source : googleSongUrl(query,true);
+  ui.chartSource.hidden=!result.source;
+  if(result.source) ui.chartSource.href=result.source;
+  ui.videoSearchLink.href="https://www.youtube.com/results?"+new URLSearchParams({search_query:query});
+  if(result.video) setSongVideo(result.video);
+  updateSongSheet();
+  controls();
+  ui.songName.focus();
+}
+
+function updateSongSheet() {
+  const imported=ui.songSheetInput.value;
+  const german=ui.germanChords.checked || /\bH(?:m|7|#|\b)/.test(imported);
+  const parsed=parseSongSheet(imported,german);
+  songSelection.german=german;
+  songSelection.chart=parsed;
+  ui.startSong.disabled=!parsed.steps.length || !!parsed.unsupported.length;
+  ui.chartStatus.textContent=parsed.unsupported.length ? "Unsupported chords: "+parsed.unsupported.join(", ")+". Edit the chart before playing."
+    : parsed.steps.length ? parsed.steps.length+" chord changes · "+[...new Set(parsed.steps.map(step=>step.label))].join(" · ")
+    : "Add a chord sheet to start.";
+}
+
+function renderSongGuide() {
+  const {chart,title}=songRun;
+  ui.songGuideTitle.textContent=title;
+  ui.songProgress.textContent="Chord "+(songRun.index+1)+" of "+chart.steps.length;
+  if(songRun.sheetNode!==ui.songGuideSheet || !ui.songGuideSheet.childElementCount){
+    ui.songGuideSheet.replaceChildren();
+    for(const row of chart.rows) {
+      const line=document.createElement("div");
+      line.className="song-lyric-line";
+      for(const part of row){
+        if(part.label){
+          const chord=document.createElement("span");
+          chord.className="song-step";
+          chord.dataset.step=String(part.index);
+          chord.textContent=part.label;
+          line.append(chord);
+        } else line.append(document.createTextNode(part.text));
+      }
+      ui.songGuideSheet.append(line);
+    }
+    songRun.sheetNode=ui.songGuideSheet;
+  }
+  ui.songGuideSheet.querySelector("[aria-current]")?.removeAttribute("aria-current");
+  const current=ui.songGuideSheet.querySelector('[data-step="'+songRun.index+'"]');
+  if(current){
+    current.setAttribute("aria-current","step");
+    const container=ui.songGuideSheet;
+    const offset=current.parentElement.offsetTop-container.offsetTop;
+    if(offset<container.scrollTop || offset>container.scrollTop+container.clientHeight-35)
+      container.scrollTop=Math.max(0,offset-container.clientHeight/3);
+  }
+}
+
+function songStepTarget(step) {
+  if(instrument==="guitar") return step.chord;
+  const bass=step.label.includes("/")?songChord(step.label.split("/")[1],songRun.german):null;
+  const inversion=bass ? orderedSongTones(step.chord).indexOf(bass[1]) : 0;
+  return [...step.chord,Math.max(0,inversion)];
+}
+
+function startSong() {
+  const selection=songSelection;
+  if(!selection?.chart.steps.length || selection.chart.unsupported.length) return;
+  songRun={...selection,index:-1};
+  startRound(0);
+}
+
+function leaveSongRun() {
+  if(!songRun) return;
+  playing=false;
+  songRun=null;
+  ui.songGuideSheet.replaceChildren();
+  calibration=null;
+  releaseScreenLock();
+  endRoundClock();
+  stop();
+}
+
+function returnToSong() {
+  leaveSongRun();
+  screen="songSetup";
+  controls();
+  ui.songName.focus();
+}
+
+function finishSong() {
+  const length=songRun.chart.steps.length;
+  leaveSongRun();
+  screen="songEnd";
+  ui.songEndScore.textContent=count+" of "+length+" chord changes correct.";
+  controls();
+  ui.songEndTitle.focus();
+}
+
+function connectSongUi() {
+  ui.practiceChoice.onclick=()=>{showSetup();ui.setupTitle.focus();};
+  ui.songChoice.onclick=showSongSearch;
+  ui.songModeBack.onclick=showInstrumentMenu;
+  ui.songSearchForm.onsubmit=submitSongSearch;
+  ui.songEditorBack.onclick=()=>{clearSongVideo();showSongSearch();};
+  ui.songSheetInput.oninput=ui.germanChords.onchange=updateSongSheet;
+  ui.importChart.onclick=importSongChart;
+  ui.findVideos.onclick=findSongVideos;
+  ui.loadVideo.onclick=()=>{
+    const id=videoId(ui.videoUrl.value.trim());
+    if(id) setSongVideo(id);
+    else ui.songVideoStatus.textContent="Enter a valid YouTube video link.";
+  };
+  ui.startSong.onclick=ui.songReplay.onclick=startSong;
+  ui.songEndBack.onclick=returnToSong;
+}
+connectSongUi();
 controls();
 </script>
 </html>
