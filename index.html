@@ -771,7 +771,7 @@ function playCorrectCue() {
   if(feedbackAudio?.state!=="running") return;
   const start=feedbackAudio.currentTime+.008;
   feedbackUntil=start+.42;
-  const cue=[{note:48,volume:.16},{note:72,volume:.10},{note:96,volume:.055}];
+  const cue=[{note:48,volume:.40},{note:72,volume:.25},{note:96,volume:.135}];
   for(const [index,{note,volume}] of cue.entries()){
     const time=start+index*.075;
     const oscillator=feedbackAudio.createOscillator();
@@ -891,7 +891,7 @@ function spectralPitches(spectrum,binHz,expected=null) {
   }
   return pitches;
 }
-function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz),expected=null) {
+function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz),expected=null,prompt=null) {
   const chroma=new Float64Array(12);
   for(let note=30;note<pitches.length;note++) {
     const harmonics=.43*(pitches[note-12]||0)+.38*(pitches[note-19]||0)+.25*(pitches[note-24]||0)+.19*(pitches[note-28]||0)+.15*(pitches[note-31]||0);
@@ -902,10 +902,11 @@ function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz),expecte
   if(!total) return null;
   const ranked=[];
   const guitar=instrument==="guitar";
+  const share=chroma.map(value=>value/total);
   const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
   const bass=pitches.findIndex(value=>value>=strongest*.22)%12;
   for(const [name,root,notes] of guitar ? guitarChords : chords) {
-    const weights=notes.map(note=>chroma[note]/total);
+    const weights=notes.map(note=>share[note]);
     const weakest=Math.min(...weights);
     if(weakest<(notes.length===4?.054:.065)) continue;
     const coverage=weights.reduce((sum,weight)=>sum+weight,0);
@@ -913,8 +914,23 @@ function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz),expecte
     ranked.push([name,coverage+weakest*.12+(guitar && bass===root?.075:0)]);
   }
   ranked.sort((a,b)=>b[1]-a[1]);
+  if(guitar && prompt && closeGuitarChord(prompt,share,bass,ranked[0]?.[1]||0)) return prompt[0];
   if(!ranked.length || ranked[0][1]<.69 || ranked[0][1]-(ranked[1]?.[1]??0)<(guitar?.029:.045)) return null;
   return ranked[0][0];
+}
+function closeGuitarChord([,root,notes],share,bass,topScore) {
+  if(notes.length<3) return false;
+  const weights=notes.map(note=>share[note]);
+  const weakest=Math.min(...weights);
+  const coverage=weights.reduce((sum,weight)=>sum+weight,0);
+  if(weakest<.045 || coverage<.86) return false;
+  const stray=Math.max(...share.filter((_,note)=>!notes.includes(note)));
+  if(stray>.09 || stray>weakest*1.35) return false;
+  const minorThird=(root+3)%12, majorThird=(root+4)%12;
+  if(notes.includes(minorThird) && !notes.includes(majorThird) && share[majorThird]>=share[minorThird]*.8) return false;
+  if(notes.includes(majorThird) && !notes.includes(minorThird) && share[minorThird]>=share[majorThird]*.8) return false;
+  const score=coverage+weakest*.12+(bass===root?.075:0);
+  return topScore-score<=.095;
 }
 function matchHeardNotes(pitches,frets,start) {
   const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
@@ -1039,7 +1055,7 @@ async function startMic() {
       }
       if(advance) return;
       if(level<signalFloor){stable=null;frames=0;return;}
-      const detected=identify(spectrum,binHz,pitches,expected);
+      const detected=identify(spectrum,binHz,pitches,expected,instrument==="guitar" ? target : null);
       frames=detected && detected===stable ? frames+1 : 1;
       stable=detected;
       if(detected && frames>=3 && canGradeMic(detected)) {
