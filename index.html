@@ -1848,6 +1848,15 @@ function searchTrackCatalog(query) {
   });
 }
 
+async function searchSongCharts(query) {
+  const url=new URL("/api/search",pesmaricaImportEndpoint);
+  url.searchParams.set("q",query);
+  const response=await fetch(url,{credentials:"omit",signal:AbortSignal.timeout(6500)});
+  if(!response.ok) throw Error("Chart search unavailable");
+  const {results}=await response.json();
+  return results.filter(result=>typeof result.title==="string" && typeof result.artist==="string" && supportedChartLink(result.source));
+}
+
 function renderSongResults(results,query) {
   ui.songResults.replaceChildren();
   for(const result of results){
@@ -1857,9 +1866,14 @@ function renderSongResults(results,query) {
     const title=document.createElement("strong");
     title.textContent=result.title;
     const artist=document.createElement("span");
-    artist.textContent=result.artist;
+    artist.textContent=[result.artist,result.chartProvider].filter(Boolean).join(" · ");
     button.append(title,artist);
-    button.onclick=()=>openSong(result);
+    button.onclick=()=>{
+      openSong(result);
+      if(!result.source || result.sheet) return;
+      ui.chartUrl.value=result.source;
+      void importSongChart();
+    };
     ui.songResults.append(button);
   }
   ui.songGoogle.hidden=!query;
@@ -1967,11 +1981,15 @@ async function submitSongSearch(event) {
   const matches=songCatalog.filter(song=>words.every(word=>songNormalize(song.title+" "+song.artist).includes(word)));
   renderSongResults(matches,query);
   ui.songSearchStatus.textContent="Searching online…";
-  try {
-    const rows=await searchTrackCatalog(query);
+  {
+    const [trackSearch,chartSearch]=await Promise.allSettled([searchTrackCatalog(query),searchSongCharts(query)]);
+    const rows=trackSearch.status==="fulfilled" ? trackSearch.value : [];
+    const charts=chartSearch.status==="fulfilled" ? chartSearch.value : [];
     if(serial!==latestTrackQuery || screen!=="songSearch") return;
-    const seen=new Set(matches.map(song=>songNormalize(song.title)));
-    const results=[...matches];
+    const matchedCharts=charts.map(chart=>({...chart,chartProvider:"Pesmarica"}));
+    const results=[...matches,...matchedCharts.filter(chart=>!matches.some(song=>
+      songNormalize(song.title)===songNormalize(chart.title) && songNormalize(song.artist)===songNormalize(chart.artist)))];
+    const seen=new Set(results.map(song=>songNormalize(song.title)));
     for(const row of rows){
       if(typeof row.trackName!=="string" || typeof row.artistName!=="string") continue;
       const key=songNormalize(row.trackName);
@@ -1980,10 +1998,9 @@ async function submitSongSearch(event) {
       results.push({title:row.trackName,artist:row.artistName});
     }
     renderSongResults(results,query);
-    ui.songSearchStatus.textContent=results.length ? results.length+" songs found" : "No catalog match. Try Pesmarica or use this title.";
-  } catch {
-    if(serial===latestTrackQuery && screen==="songSearch")
-      ui.songSearchStatus.textContent="Online catalog unavailable. You can still search chord sources or use this title.";
+    ui.songSearchStatus.textContent=matchedCharts.length ? "Select a Pesmarica result to load its chords."
+      : results.length ? "No chord chart found automatically. You can still search chord sources."
+      : "No results found. Try a chord source or use this title.";
   }
 }
 
