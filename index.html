@@ -42,9 +42,12 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 .calibration-title{font-size:clamp(2.2rem,7vw,4rem);letter-spacing:-.05em;margin:13px 0}.calibration-strings{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:20px 0}.calibration-strings span{display:grid;place-items:center;min-width:40px;padding:8px 4px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-weight:700}.calibration-strings .captured{border-color:var(--accent);color:var(--accent)}#calibrationStatus{min-height:2.6em}.quiz-stats{margin-top:10px}
 
 :root{--wrong:#ff7d8d;--wrong-tint:#ff526855}.fretboard .string-meter:has(i[data-wrong=true]){background:#783744}.string-meter i[data-wrong=true]{background:var(--wrong)}.fretboard .heard-note.wrong-note{border-color:var(--wrong);background:var(--wrong-tint)}.diagram-legend .wrong-label::before{box-sizing:border-box;background:var(--wrong-tint);border:1px solid var(--wrong)}.staff .staff-heard .notehead.wrong-note{stroke:var(--wrong);fill:var(--wrong-tint)}.staff .staff-heard .accidental.wrong-note{fill:var(--wrong)}.piano-key.wrong-key::after{border-color:#c42e49;background:var(--wrong-tint)}.piano-key.wrong-key::before{content:"";z-index:2;position:absolute;width:min(14px,80%);aspect-ratio:1;left:50%;top:46%;transform:translate(-50%,-50%);border:2px solid #a31934;border-radius:50%;background:#ff9aa7}
+
+#appRoot:fullscreen,#appRoot.focus-view{width:100%;height:100%;margin:0;padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right),calc((100% - 790px)/2)) max(18px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left),calc((100% - 790px)/2));overflow:auto;background:#141822}#appRoot.focus-view{position:fixed;inset:0;z-index:10;overscroll-behavior:contain}#fullscreenToggle{margin-left:auto;white-space:nowrap}
+@media(max-width:460px){.masthead strong{display:none}.masthead button{padding-inline:10px}}
 </style>
-<main>
-<div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong></div>
+<main id="appRoot">
+<div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong><button id="fullscreenToggle" aria-pressed="false">Full screen</button></div>
 <section class="intro" id="intro" aria-labelledby="introTitle">
 <div class="intro-head"><div><h1 id="introTitle" tabindex="-1">Chord Drill</h1>
 <p>Pick an instrument and play the chords on screen.</p></div>
@@ -701,6 +704,35 @@ function status(message, style="") {
   if(ui.status.textContent !== message) ui.status.textContent=message;
   ui.status.className=style;
 }
+let focusView=false;
+
+function syncFullscreenButton() {
+  const fullscreen=document.fullscreenElement===ui.appRoot;
+  ui.fullscreenToggle.textContent=fullscreen ? "Exit full screen" : focusView ? "Exit focus view" : "Full screen";
+  ui.fullscreenToggle.setAttribute("aria-pressed",String(fullscreen || focusView));
+  ui.masthead.hidden=screen==="intro" && !fullscreen && !focusView;
+  ui.homeButton.hidden=screen==="intro";
+}
+
+function setFocusView(active) {
+  focusView=active;
+  ui.appRoot.classList.toggle("focus-view",active);
+  syncFullscreenButton();
+}
+
+async function toggleFullscreen() {
+  if(focusView){setFocusView(false);return;}
+  if(document.fullscreenElement===ui.appRoot){
+    await document.exitFullscreen().catch(()=>{});
+    return;
+  }
+  if(document.fullscreenEnabled && ui.appRoot.requestFullscreen){
+    try {await ui.appRoot.requestFullscreen();return;}
+    catch {}
+  }
+  setFocusView(true);
+}
+
 function controls() {
   ui.retryInput.hidden=Boolean(mode) || busy;
   ui.calibrationPanel.hidden=!calibration;
@@ -709,7 +741,7 @@ function controls() {
   ui.leaveCalibration.disabled=busy;
   ui.stop.hidden=!mode;
   ui.intro.hidden=screen!=="intro";
-  ui.masthead.hidden=screen==="intro";
+  syncFullscreenButton();
   ui.homeButton.disabled=busy;
   ui.setup.hidden=screen!=="setup";
   ui.results.hidden=screen!=="results";
@@ -1150,6 +1182,7 @@ async function startMidi() {
 for(const id of Object.keys(levels)) ui[id].onclick=()=>selectLevel(id);
 ui.duration.onchange=ui.bonus.onchange=syncRoundOptions;
 ui.homeButton.onclick=showIntro;
+ui.fullscreenToggle.onclick=toggleFullscreen;
 ui.replay.onclick=beginQuiz;
 ui.resultSetup.onclick=()=>{showSetup();ui.setupTitle.focus();};
 ui.selectAll.onclick=()=>setAllChords(true);
@@ -1163,6 +1196,8 @@ ui.skipCalibration.onclick=()=>finishCalibration();
 ui.leaveCalibration.onclick=()=>{showSetup();ui.setupTitle.focus();};
 ui.stop.onclick=stop;
 ui.skip.onclick=()=>{if(!advance) streak=0;updateScore();nextChord();};
+document.addEventListener("fullscreenchange",syncFullscreenButton);
+window.addEventListener("keydown",event=>{if(event.key==="Escape" && focusView) setFocusView(false);});
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState==="visible") keepScreenAwake();
   else releaseScreenLock();
