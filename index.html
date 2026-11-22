@@ -51,6 +51,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 
 .fft-debug{margin-top:16px;padding:13px 10px 7px;background:var(--panel);border:1px solid var(--line);border-radius:14px}.fft-debug summary{width:auto;font-weight:700;margin:0 4px;padding:4px}.fft-debug p{font-size:.85rem;font-variant-numeric:tabular-nums;margin:8px 4px 0;min-height:1.3em}.fft-debug canvas{display:block;width:100%;height:clamp(178px,31vw,238px)}
 .fft-debug canvas{cursor:crosshair}.fft-debug canvas:focus-visible{outline:2px solid #88ceff;outline-offset:2px}.fft-debug .fft-bins{margin:0 4px 7px;color:#a7d9f7}
+
+.fft-settings{display:flex;align-items:center;flex-wrap:wrap;gap:6px 9px;margin:8px 4px 0;color:var(--muted);font-size:.85rem}.fft-settings select{appearance:none;background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 14px center/5px 5px no-repeat,linear-gradient(135deg,currentColor 50%,transparent 50%) right 9px center/5px 5px no-repeat #2d3343;color:var(--ink);border:1px solid var(--line);border-radius:7px;font:inherit;padding:6px 24px 6px 8px}.fft-settings .fft-signal{flex-basis:100%;margin:2px 0 0;color:#a7d9f7}
 </style>
 <main id="appRoot">
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong><button id="fullscreenToggle" aria-pressed="false">Full screen</button></div>
@@ -119,6 +121,11 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 </section>
 <details class="fft-debug" id="fftDebug" open hidden>
 <summary>FFT debug</summary>
+<div class="fft-settings">
+<label for="fftResolution">FFT size</label>
+<select id="fftResolution"><option value="8192">8,192 · Standard</option><option value="16384">16,384 · High resolution</option></select>
+<p class="fft-signal" id="fftSignal">Post-AGC spectrum · Waiting for microphone</p>
+</div>
 <p id="fftReadout">Waiting for microphone input.</p>
 <canvas id="fftCanvas" tabindex="0" role="img" aria-label="Live FFT spectrum with one bar per bin. Use left and right arrow keys to inspect bins."></canvas>
 <p class="fft-bins" id="fftBinReadout">Move over the graph or tap a bar to inspect a bin.</p>
@@ -828,7 +835,7 @@ function primeFeedbackAudio() {
 function playCorrectCue() {
   if(feedbackAudio?.state!=="running") return;
   const start=feedbackAudio.currentTime+.008;
-  feedbackUntil=start+.55;
+  feedbackUntil=start+.39+(analyser && context ? analyser.fftSize/context.sampleRate : .16);
   const cue=[{note:48,volume:.40},{note:72,volume:.25},{note:96,volume:.135}];
   for(const [index,{note,volume}] of cue.entries()){
     const time=start+index*.11;
@@ -859,7 +866,8 @@ function answer(name) {
     if(earnedTime){roundEnd+=10000;showClock();}
     status("Correct! "+name+(earnedTime?" · +10 seconds":""),"correct");
     playCorrectCue();
-    advance=setTimeout(nextChord,565);
+    const delay=analyser && context ? Math.max(565,Math.ceil(408+1000*analyser.fftSize/context.sampleRate)) : 565;
+    advance=setTimeout(nextChord,delay);
   } else {
     streak=0;
     updateScore();
@@ -1076,11 +1084,13 @@ const fftMinDb=-100, fftLeft=43, fftRight=12;
 function fftRange(){return instrument==="guitar" ? [guitarMinHz,guitarMaxHz] : [30,4000];}
 let fftPlot, fftFrame, selectedBin=null;
 
+function selectedFftSize(){return ui.fftResolution.value==="16384" ? 16384 : 8192;}
+
 function inspectFftBin(index) {
   if(!fftFrame) return;
-  const {spectrum,binHz,sampleRate,first,last}=fftFrame;
+  const {spectrum,binHz,sampleRate,first,last,gain}=fftFrame;
   selectedBin=index===null ? null : Math.max(first,Math.min(last,index));
-  paintFft(spectrum,binHz,sampleRate);
+  paintFft(spectrum,binHz,sampleRate,gain);
 }
 
 function selectFftBinAt(event) {
@@ -1095,7 +1105,7 @@ function selectFftBinAt(event) {
   inspectFftBin(Math.round(hz/fftFrame.binHz));
 }
 
-function paintFft(spectrum,binHz,sampleRate) {
+function paintFft(spectrum,binHz,sampleRate,gain=1) {
   if(ui.fftDebug.hidden || !ui.fftDebug.open) return;
   const canvas=ui.fftCanvas;
   const width=canvas.clientWidth, height=canvas.clientHeight;
@@ -1162,7 +1172,11 @@ function paintFft(spectrum,binHz,sampleRate) {
     if(spectrum[bin]>spectrum[peak]) peak=bin;
   }
   plot.stroke();
-  fftFrame={spectrum,binHz,sampleRate,first,last,peak};
+  fftFrame={spectrum,binHz,sampleRate,first,last,peak,gain};
+  const dbGain=20*Math.log10(gain);
+  const gainSign=dbGain>=0?"+":"";
+  const windowMs=(1000/binHz).toFixed(0);
+  ui.fftSignal.textContent="Post-AGC spectrum · AGC "+gainSign+dbGain.toFixed(1)+" dB · "+windowMs+" ms window";
   if(selectedBin!==null) selectedBin=Math.max(first,Math.min(last,selectedBin));
   const bin=selectedBin??peak;
   const hz=bin*binHz;
@@ -1192,6 +1206,7 @@ function paintFft(spectrum,binHz,sampleRate) {
 function resetFftPlot() {
   fftFrame=null;
   selectedBin=null;
+  ui.fftSignal.textContent=mode==="midi" ? "MIDI input · AGC inactive" : "Post-AGC spectrum · Waiting for microphone";
   const [min,max]=fftRange();
   ui.fftBinReadout.textContent=min+"–"+max+" Hz · Move over the graph or tap a bar to inspect a bin.";
   ui.fftReadout.textContent=mode==="midi" ? "MIDI sends notes directly. FFT is available with microphone input." : "Waiting for microphone input.";
@@ -1242,11 +1257,11 @@ async function startMic() {
     await context.resume();
     stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     analyser=context.createAnalyser();
-    analyser.fftSize=8192;
+    analyser.fftSize=selectedFftSize();
     analyser.smoothingTimeConstant=.18;
     const inputGain=connectMicrophoneInput(context,stream,analyser);
-    const time=new Float32Array(analyser.fftSize);
-    const spectrum=new Float32Array(analyser.frequencyBinCount);
+    let time=new Float32Array(analyser.fftSize);
+    let spectrum=new Float32Array(analyser.frequencyBinCount);
     mode="mic";
     if(calibration) drawCalibration("Ready. Strum the six open strings once.");
     for(const track of stream.getTracks()) track.addEventListener("ended",()=>{
@@ -1254,17 +1269,27 @@ async function startMic() {
     });
     timer=setInterval(()=>{
       if(feedbackAudio && feedbackAudio.currentTime<feedbackUntil) return;
+      const size=selectedFftSize();
+      if(analyser.fftSize!==size){
+        analyser.fftSize=size;
+        time=new Float32Array(size);
+        spectrum=new Float32Array(analyser.frequencyBinCount);
+        stable=null;
+        frames=0;
+        selectedBin=null;
+      }
       analyser.getFloatTimeDomainData(time);
       let power=0;
       for(let index=time.length-1024;index<time.length;index++) power+=time[index]*time[index];
       const level=Math.sqrt(power/1024);
+      const gain=inputGain.value;
       updateInputGain(inputGain,level,context.currentTime);
       const signalFloor=instrument==="guitar" ? guitarProfile?.signalFloor??.0025 : .0025;
       if(level<signalFloor || level>Math.max(signalFloor*1.6,recentLevel*1.65)) micReattacked=true;
       recentLevel=level*.6+recentLevel*.4;
       analyser.getFloatFrequencyData(spectrum);
       const binHz=context.sampleRate/analyser.fftSize;
-      paintFft(spectrum,binHz,context.sampleRate);
+      paintFft(spectrum,binHz,context.sampleRate,gain);
       if(calibration){collectCalibration(spectrum,binHz,level,performance.now());return;}
       const frets=instrument==="guitar" ? target[3][shapeIndex].frets : null;
       const expected=frets && guitarProfile ? calibratedGuitarPitches(frets) : null;
