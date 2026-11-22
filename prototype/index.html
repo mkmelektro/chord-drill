@@ -595,8 +595,10 @@ function spectralPeakMidi(spectrum,bin,binHz) {
 
 const guitarMinHz=75, guitarMaxHz=1350;
 const calibratedPitchTolerance=.31+.03;
+const guitarBinMarginDb=8;
 
-function openStringPeaks(spectrum,binHz) {
+function openStringPeaks(spectrum,binHz,adaptive=null,gain=1) {
+  const gainDb=adaptive ? 20*Math.log10(gain) : 0;
   return guitarTuning.map(note=>{
     const frequency=440*2**((note-69)/12);
     const center=Math.round(frequency/binHz);
@@ -605,7 +607,7 @@ function openStringPeaks(spectrum,binHz) {
     let best=null;
     for(let bin=first;bin<=last;bin++){
       const power=spectrum[bin];
-      if(power < -86 || power<spectrum[bin-1] || power<=spectrum[bin+1]) continue;
+      if(power < -86 || power<spectrum[bin-1] || power<=spectrum[bin+1] || (adaptive && power-gainDb<adaptive.floor[bin]+guitarBinMarginDb)) continue;
       const offset=spectralPeakMidi(spectrum,bin,binHz)-note;
       if(Math.abs(offset)>.72) continue;
       const amplitude=10**(power/20);
@@ -643,7 +645,7 @@ function finishCalibration(profile=null) {
   ui.target.focus();
 }
 
-function collectCalibration(spectrum,binHz,level,now,agcGain=1) {
+function collectCalibration(spectrum,binHz,level,now,agcGain=1,adaptive=null) {
   const state=calibration;
   if(state.readyAfter){
     if(now>=state.readyAfter) finishCalibration(state.profile);
@@ -667,7 +669,7 @@ function collectCalibration(spectrum,binHz,level,now,agcGain=1) {
     state.peakLevel=rawLevel;
   }
   state.peakLevel=Math.max(state.peakLevel,rawLevel);
-  for(const [index,note] of openStringPeaks(spectrum,binHz).entries()){
+  for(const [index,note] of openStringPeaks(spectrum,binHz,adaptive,agcGain).entries()){
     if(!note) continue;
     note.amplitude/=agcGain;
     if(!state.notes[index] || note.amplitude>state.notes[index].amplitude) state.notes[index]=note;
@@ -977,7 +979,7 @@ function spectralPitches(spectrum,binHz,expected=null,adaptive=null,gain=1) {
     const power=spectrum[bin];
     const left=bin>first?spectrum[bin-1]:-Infinity;
     const right=bin<last?spectrum[bin+1]:-Infinity;
-    if(power<-91 || power<left || power<=right || (adaptive && power-gainDb<adaptive.floor[bin]+8)) continue;
+    if(power<-91 || power<left || power<=right || (adaptive && power-gainDb<adaptive.floor[bin]+guitarBinMarginDb)) continue;
     const midi=bin===first || bin===last ? 69+12*Math.log2(bin*binHz/440) : spectralPeakMidi(spectrum,bin,binHz);
     let note=Math.round(midi), error=Math.abs(note-midi);
     if(expected){
@@ -1194,7 +1196,8 @@ function paintFft(spectrum,binHz,sampleRate,gain=1,adaptive=null) {
   const first=Math.max(1,Math.ceil(min/binHz));
   const last=Math.min(spectrum.length-2,Math.floor(max/binHz));
   if(first>last) return;
-  let peak=first;
+  const dbGain=20*Math.log10(gain);
+  let peak=first, notePeak=null;
   plot.fillStyle="#67bceb66";
   plot.strokeStyle="#a9e96b";
   plot.lineWidth=1.5;
@@ -1208,10 +1211,11 @@ function paintFft(spectrum,binHz,sampleRate,gain=1,adaptive=null) {
     if(bin===first) plot.moveTo(x,y);
     else plot.lineTo(x,y);
     if(spectrum[bin]>spectrum[peak]) peak=bin;
+    if((!adaptive || spectrum[bin]-dbGain>=adaptive.floor[bin]+guitarBinMarginDb) &&
+       (notePeak===null || spectrum[bin]>spectrum[notePeak])) notePeak=bin;
   }
   plot.stroke();
   fftFrame={spectrum,binHz,sampleRate,first,last,peak,gain,adaptive};
-  const dbGain=20*Math.log10(gain);
   const gainSign=dbGain>=0?"+":"";
   ui.fftNoise.hidden=!adaptive;
   if(adaptive){
@@ -1244,15 +1248,15 @@ function paintFft(spectrum,binHz,sampleRate,gain=1,adaptive=null) {
     plot.strokeStyle="#88ceff";
     plot.beginPath();plot.moveTo(x,top);plot.lineTo(x,bottom);plot.stroke();
   }
-  if(spectrum[peak]>fftMinDb){
-    const midi=spectralPeakMidi(spectrum,peak,binHz);
+  if(notePeak!==null && spectrum[notePeak]>fftMinDb && (!adaptive || adaptive.active)){
+    const midi=spectralPeakMidi(spectrum,notePeak,binHz);
     const hz=440*2**((midi-69)/12);
     const note=Math.round(midi);
     const label=names[(note%12+12)%12]+(Math.floor(note/12)-1);
-    ui.fftReadout.textContent="Peak "+hz.toFixed(1)+" Hz · "+label+" · "+spectrum[peak].toFixed(1)+" dB · "+(sampleRate/1000).toFixed(1)+" kHz sample rate";
+    ui.fftReadout.textContent="Peak "+hz.toFixed(1)+" Hz · "+label+" · "+spectrum[notePeak].toFixed(1)+" dB · "+(sampleRate/1000).toFixed(1)+" kHz sample rate";
     plot.fillStyle="#a9e96b";
-    plot.beginPath();plot.arc(Math.min(right,Math.max(left,xFor(hz))),yFor(spectrum[peak]),3,0,Math.PI*2);plot.fill();
-  } else ui.fftReadout.textContent="No signal above "+fftMinDb+" dB.";
+    plot.beginPath();plot.arc(Math.min(right,Math.max(left,xFor(hz))),yFor(spectrum[notePeak]),3,0,Math.PI*2);plot.fill();
+  } else ui.fftReadout.textContent=adaptive ? "No note above the noise floor." : "No signal above "+fftMinDb+" dB.";
 }
 
 function resetFftPlot() {
@@ -1392,7 +1396,7 @@ async function startMic() {
       if(relativeLevel<signalFloor || relativeLevel>Math.max(signalFloor*1.6,recentLevel*1.65)) micReattacked=true;
       recentLevel=relativeLevel*.6+recentLevel*.4;
       paintFft(spectrum,binHz,context.sampleRate,gain,adaptive);
-      if(calibration){collectCalibration(spectrum,binHz,level,performance.now(),gain);return;}
+      if(calibration){collectCalibration(spectrum,binHz,level,performance.now(),gain,adaptive);return;}
       const frets=instrument==="guitar" ? target[3][shapeIndex].frets : null;
       const expected=frets && guitarProfile ? calibratedGuitarPitches(frets) : null;
       let pitches=spectralPitches(spectrum,binHz,expected,adaptive,gain);
