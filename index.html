@@ -37,6 +37,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 
 .intro-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:start;margin-bottom:22px}.intro-head p{margin-bottom:0}.share-qr{display:grid;justify-items:center;gap:6px;max-width:145px;color:var(--muted);font-size:.8rem;text-decoration:none;text-align:center}.share-qr:hover,.share-qr:focus-visible{color:var(--ink)}.share-qr svg{display:block;width:148px;max-width:100%;height:auto;border-radius:8px}.difficulty-group{grid-column:1/-1;margin:5px 0 0;font-size:.85rem;font-weight:600;color:var(--muted)}.level-description{margin:8px 0 0;font-size:.9rem}
 @media(max-width:600px){.intro-head{grid-template-columns:1fr}.share-qr{display:flex;align-items:center;max-width:none;text-align:left;gap:10px}.share-qr svg{width:111px;flex:0 0 111px}}
+.screen-status{font-size:.8rem;margin:6px 0 0}.screen-status[data-awake="true"]{color:var(--accent)}
 </style>
 <main>
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong></div>
@@ -71,7 +72,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 </section>
 <section class="card" id="quiz" aria-label="Chord quiz" hidden>
 <div class="stats quiz-stats"><span>Correct <b id="score">0</b></span><span>Streak <b id="streak">0</b></span><span id="timedStats" hidden>Time <b id="clock">1:00</b> · Best <b id="best">0</b></span></div>
-<div>Play this chord</div><h2 id="target" tabindex="-1"></h2>
+<div>Play this chord</div>
+<p class="screen-status" id="screenStatus" hidden></p><h2 id="target" tabindex="-1"></h2>
 <div id="status" role="status" aria-live="polite"></div>
 <div class="voicing" id="voicing" hidden></div>
 <details id="details"><summary>Show fingering</summary><div class="hint" id="hint"></div></details>
@@ -227,10 +229,56 @@ function endRoundClock() {
   roundEnd=0;
 }
 
+let screenLock, screenRequest;
+
+function showScreenStatus(active) {
+  ui.screenStatus.hidden=false;
+  ui.screenStatus.dataset.awake=String(active);
+  ui.screenStatus.textContent=active ? "Screen stays on" : "Screen may sleep";
+}
+
+function releaseScreenLock() {
+  screenRequest=null;
+  const lock=screenLock;
+  screenLock=null;
+  ui.screenStatus.hidden=true;
+  if(lock && !lock.released) lock.release().catch(()=>{});
+}
+
+async function keepScreenAwake() {
+  if(!playing || document.visibilityState!=="visible" || screenRequest || (screenLock && !screenLock.released)) return;
+  if(!navigator.wakeLock){
+    showScreenStatus(false);
+    return;
+  }
+  const request={};
+  screenRequest=request;
+  try {
+    const lock=await navigator.wakeLock.request("screen");
+    if(screenRequest!==request || !playing || document.visibilityState!=="visible"){
+      if(!lock.released) await lock.release();
+      return;
+    }
+    screenLock=lock;
+    showScreenStatus(!lock.released);
+    lock.addEventListener("release",()=>{
+      if(screenLock!==lock) return;
+      screenLock=null;
+      if(playing && document.visibilityState==="visible") showScreenStatus(false);
+      else ui.screenStatus.hidden=true;
+    },{once:true});
+  } catch {
+    if(screenRequest===request && playing && document.visibilityState==="visible") showScreenStatus(false);
+  } finally {
+    if(screenRequest===request) screenRequest=null;
+  }
+}
+
 function finishRound() {
   if(!playing) return;
   playing=false;
   screen="results";
+  releaseScreenLock();
   endRoundClock();
   stop();
   const best=Math.max(recordBefore,bestScore(recordKey),count);
@@ -424,6 +472,7 @@ function setAllChords(select) {
 function showSetup() {
   screen="setup";
   playing=false;
+  releaseScreenLock();
   endRoundClock();
   stop();
   deck=[];
@@ -455,6 +504,7 @@ function beginQuiz() {
   playing=true;
   controls();
   nextChord();
+  keepScreenAwake();
   primeFeedbackAudio();
   connectInput();
   ui.target.focus();
@@ -653,6 +703,7 @@ function showIntro() {
   if(busy) return;
   screen="intro";
   playing=false;
+  releaseScreenLock();
   endRoundClock();
   stop();
   ui.introTitle.focus();
@@ -929,7 +980,13 @@ ui.piano.onclick=()=>switchInstrument("piano");
 ui.retryInput.onclick=connectInput;
 ui.stop.onclick=stop;
 ui.skip.onclick=()=>{if(!advance) streak=0;updateScore();nextChord();};
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible") keepScreenAwake();
+  else releaseScreenLock();
+});
+window.addEventListener("pageshow",keepScreenAwake);
 window.addEventListener("pagehide",()=>{
+  releaseScreenLock();
   endRoundClock();
   stop();
   if(feedbackAudio && feedbackAudio.state!=="closed") feedbackAudio.close().catch(()=>{});
