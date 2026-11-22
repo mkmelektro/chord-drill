@@ -40,6 +40,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 .screen-status{font-size:.8rem;margin:6px 0 0}.screen-status[data-awake="true"]{color:var(--accent)}
 
 .calibration-title{font-size:clamp(2.2rem,7vw,4rem);letter-spacing:-.05em;margin:13px 0}.calibration-strings{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:20px 0}.calibration-strings span{display:grid;place-items:center;min-width:40px;padding:8px 4px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-weight:700}.calibration-strings .captured{border-color:var(--accent);color:var(--accent)}#calibrationStatus{min-height:2.6em}.quiz-stats{margin-top:10px}
+
+:root{--wrong:#ff7d8d;--wrong-tint:#ff526855}.fretboard .string-meter:has(i[data-wrong=true]){background:#783744}.string-meter i[data-wrong=true]{background:var(--wrong)}.fretboard .heard-note.wrong-note{border-color:var(--wrong);background:var(--wrong-tint)}.diagram-legend .wrong-label::before{box-sizing:border-box;background:var(--wrong-tint);border:1px solid var(--wrong)}.staff .staff-heard .notehead.wrong-note{stroke:var(--wrong);fill:var(--wrong-tint)}.staff .staff-heard .accidental.wrong-note{fill:var(--wrong)}.piano-key.wrong-key::after{border-color:#c42e49;background:var(--wrong-tint)}.piano-key.wrong-key::before{content:"";z-index:2;position:absolute;width:min(14px,80%);aspect-ratio:1;left:50%;top:46%;transform:translate(-50%,-50%);border:2px solid #a31934;border-radius:50%;background:#ff9aa7}
 </style>
 <main>
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong></div>
@@ -328,7 +330,7 @@ function pianoGrip(chord) {
   });
 }
 
-function drawStaff(grip,heard=[]) {
+function drawStaff(grip,heard=[],wrongNotes=new Set()) {
   const letters="CDEFGAB";
   const yFor=step=>116-(step-30)*6;
   const trebleBottom=30;
@@ -346,9 +348,10 @@ function drawStaff(grip,heard=[]) {
       for(let line=bottom-2;line>=step;line-=2) ledgers.add(line);
       for(let line=bottom+10;line<=step;line+=2) ledgers.add(line);
       const y=yFor(step);
+      const wrong=style==="heard" && wrongNotes.has(note) ? " wrong-note" : "";
       const noteX=x+(style==="heard" && index%2?10:0);
-      return '<ellipse cx="'+noteX+'" cy="'+y+'" rx="8" ry="4.5" transform="rotate(-12 '+noteX+' '+y+')" class="notehead"/>'+
-        (accidental?'<text x="'+(noteX-21)+'" y="'+(y+5)+'" class="accidental">'+accidental+'</text>':"");
+      return '<ellipse cx="'+noteX+'" cy="'+y+'" rx="8" ry="4.5" transform="rotate(-12 '+noteX+' '+y+')" class="notehead'+wrong+'"/>'+
+        (accidental?'<text x="'+(noteX-21)+'" y="'+(y+5)+'" class="accidental'+wrong+'">'+accidental+'</text>':"");
     }).join("");
     const ledgerLines=[...ledgers].map(step=>drawLine(step,x-12,x+20)).join("");
     return '<g class="staff-'+style+'">'+ledgerLines+noteheads+'</g>';
@@ -376,7 +379,7 @@ function drawKeyboard(chord,grip,heard=[]) {
     const black=names[midi%12].includes("♯");
     const active=sounding.indexOf(midi);
     return '<span data-midi="'+midi+'" class="piano-key '+(black?"black ":"")+(active>=0?"pressed ":"")+(active===0?"bass ":"")+
-      (heardKeys.has(midi)?"heard-key":"")+'">'+(active>=0?grip[active]:(midi%12===0?"C"+(midi/12-1):""))+'</span>';
+      (heardKeys.has(midi)?(chord[2].includes(midi%12)?"heard-key":"heard-key wrong-key"):"")+'">'+(active>=0?grip[active]:(midi%12===0?"C"+(midi/12-1):""))+'</span>';
   }).join("");
   return '<div class="piano-keys" role="img" aria-label="Piano keyboard from C4 to B5. Play: '+grip.join(", ")+'">'+keys+'</div>';
 }
@@ -386,9 +389,10 @@ function drawPiano() {
   const label=positionLabels[target[4]];
   const spelling=new Map(pianoVoicing(target).map((midi,index)=>[midi%12,grip[index].slice(0,-1)]));
   const heard=heardPiano.map(midi=>(spelling.get(midi%12)||names[midi%12])+(Math.floor(midi/12)-1));
+  const wrongNotes=new Set(heard.filter((_,index)=>!target[2].includes(heardPiano[index]%12)));
   ui.voicing.innerHTML="<p>"+label+" · low to high</p><ul aria-label='Notes from low to high'>"+
-    grip.map(note=>"<li>"+note+"</li>").join("")+"</ul>"+drawStaff(grip,heard)+drawKeyboard(target,grip,heardPiano)+
-    '<div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span></div>'+
+    grip.map(note=>"<li>"+note+"</li>").join("")+"</ul>"+drawStaff(grip,heard,wrongNotes)+drawKeyboard(target,grip,heardPiano)+
+    '<div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span><span class="wrong-label">Wrong note</span></div>'+
     (heard.length?'<p class="heard-piano">Heard: '+heard.join(" · ")+'</p>':'<p class="heard-piano"></p>');
 }
 
@@ -669,7 +673,7 @@ function drawGuitar() {
   const bars=guitarTuning.map((_,index)=>'<span class="string-meter" style="left:'+column(index)+'%"><i></i></span>').join("");
   ui.hint.innerHTML='<div class="fretboard '+(start===1?'open':'')+'" aria-hidden="true"><span class="fret-start" style="top:12.5%">'+start+'fr</span>'+bars+labels+strip+dots+'<div class="heard-layer"></div>'+
     '</div><p class="diagram-caption">Low E to high E · '+frets.map(fret=>fret===null?'×':fret).join(' – ')+
-    (bar?' · Barre fret '+bar[2]+' ('+shape.family+')':'')+'</p><div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span></div>';
+    (bar?' · Barre fret '+bar[2]+' ('+shape.family+')':'')+'</p><div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span><span class="wrong-label">Wrong note</span></div>';
   meters=[...ui.hint.querySelectorAll(".string-meter i")];
   heardLayer=ui.hint.querySelector(".heard-layer");
   renderedHearing="";
@@ -832,7 +836,7 @@ function stop() {
   lastMicAnswer=null;
   recentLevel=0;
   micReattacked=false;
-  for(const meter of meters) meter.style.height="0%";
+  for(const meter of meters){meter.style.height="0%";meter.dataset.wrong="false";}
   if(heardLayer) heardLayer.innerHTML="";
   renderedHearing="";
   armed=true;
@@ -980,13 +984,16 @@ function guitarGradingPitches(pitches,frets,heard) {
 function updateMeters(heard) {
   if(!heardLayer) return;
   const markers=[];
+  const frets=target[3][shapeIndex].frets;
   for(let index=0;index<meters.length;index++){
     const note=heard[index];
+    const wrong=Boolean(note && (frets[index]===null || !target[2].includes(note.midi%12)));
+    meters[index].dataset.wrong=String(wrong);
     meters[index].style.height=note ? Math.round(note.level*100)+"%" : "0%";
     if(note){
       const offboard=note.fret>0 && (note.fret<diagramStart || note.fret>=diagramStart+4);
       const vertical=note.fret===0 || offboard ? "" : "top:"+((note.fret-diagramStart+.5)*25)+"%;";
-      markers.push('<span class="heard-note '+(offboard?'offboard':note.fret===0?'open-note':'')+'" style="left:'+(index*20)+'%;'+vertical+'">'+(offboard?note.fret:'')+'</span>');
+      markers.push('<span class="heard-note '+(wrong?"wrong-note ":"")+(offboard?'offboard':note.fret===0?'open-note':'')+'" style="left:'+(index*20)+'%;'+vertical+'">'+(offboard?note.fret:'')+'</span>');
     }
   }
   const markup=markers.join("");
