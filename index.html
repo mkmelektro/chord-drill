@@ -936,13 +936,14 @@ function closeGuitarChord([,root,notes],share,bass,topScore) {
   const score=coverage+weakest*.12+(bass===root?.075:0);
   return topScore-score<=.095;
 }
-function matchHeardNotes(pitches,frets,start) {
+function matchHeardNotes(pitches,frets,start,profile=null) {
   const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
   const floor=Math.max(.00013,strongest*.11);
+  const maxGain=profile ? Math.max(1,...profile.strings.map(string=>string.gain)) : 1;
   const audible=[];
   for(let midi=40;midi<pitches.length;midi++){
     const level=pitches[midi]-.42*pitches[midi-12]-.36*(pitches[midi-19]||0)-.2*(pitches[midi-24]||0);
-    if(level>floor) audible.push({midi,level});
+    if(level>floor/maxGain) audible.push({midi,level});
   }
   const expectedPitches=new Set(frets.flatMap((fret,index)=>fret===null?[]:[guitarTuning[index]+fret]));
   audible.sort((a,b)=>Number(expectedPitches.has(b.midi))-Number(expectedPitches.has(a.midi)) || b.level-a.level);
@@ -960,7 +961,9 @@ function matchHeardNotes(pitches,frets,start) {
       Number(frets[a.string]===null)-Number(frets[b.string]===null));
     if(!candidates.length) continue;
     const {string,fret}=candidates[0];
-    heard[string]={midi,fret,level:Math.min(1,Math.log2(level/floor)/3.1)};
+    const calibratedLevel=level*(profile?.strings[string].gain??1);
+    if(calibratedLevel<=floor) continue;
+    heard[string]={midi,fret,level:Math.min(1,Math.log2(calibratedLevel/floor)/3.1)};
   }
   return heard;
 }
@@ -1054,7 +1057,7 @@ async function startMic() {
       const expected=frets && guitarProfile ? calibratedGuitarPitches(frets) : null;
       let pitches=spectralPitches(spectrum,binHz,expected);
       if(instrument==="guitar"){
-        const heard=matchHeardNotes(pitches,frets,diagramStart);
+        const heard=matchHeardNotes(pitches,frets,diagramStart,guitarProfile);
         updateMeters(heard);
         pitches=guitarGradingPitches(pitches,frets,heard);
       } else {
