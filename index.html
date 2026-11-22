@@ -31,13 +31,25 @@
 
 .staff .staff-play{color:var(--accent)}.staff .staff-heard{color:#86d3ff}.staff .staff-heard .notehead{fill:#4ab7ff55}.staff .staff-heard line{stroke:#6ecaff}.piano-key{position:relative}.piano-key.heard-key::after{content:"";position:absolute;inset:0;border:2px solid #6ecaff;background:#4ab7ff44;border-radius:inherit;pointer-events:none}.piano-key.pressed.heard-key::after{background:linear-gradient(#4ab7ff55 0 55%,transparent 55%)}.heard-piano{min-height:1.4em;color:#86d3ff}
 .staff .bass-clef{font-size:38px}
+
+main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h1{font-size:clamp(3.5rem,12vw,7.4rem);line-height:.92}.intro p{font-size:clamp(1rem,3vw,1.24rem);margin:20px 0 29px}.instrument-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(10px,3vw,22px)}.instrument-card{min-height:clamp(162px,36vw,264px);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:24px;border-radius:22px;font-size:clamp(1.2rem,4vw,1.75rem);transition:transform .18s,border-color .18s;background:radial-gradient(ellipse at 50% 25%,#344437,#222735 75%)}.instrument-card:hover{transform:translateY(-3px)}.piano-card{background:radial-gradient(ellipse at 50% 25%,#344557,#222735 75%)}.guitar-icon{display:block;position:relative;width:108px;height:98px;transform:rotate(-34deg);color:var(--accent)}.guitar-icon::before{content:"";position:absolute;left:5px;top:26px;width:57px;height:62px;background:currentColor;border-radius:54% 46% 43% 51%}.guitar-icon::after{content:"";position:absolute;left:37px;top:32px;width:39px;height:46px;background:currentColor;border-radius:45% 48% 48% 43%}.guitar-icon i{position:absolute;z-index:1}.guitar-icon i:nth-child(1){width:56px;height:12px;background:currentColor;left:58px;top:49px;border-radius:4px}.guitar-icon i:nth-child(2){height:20px;width:19px;left:105px;top:45px;background:currentColor;border-radius:5px 3px 3px 5px}.guitar-icon i:nth-child(3){width:16px;height:16px;border-radius:50%;left:41px;top:47px;background:#253229;box-shadow:-19px 0 0 -5px #253229}.piano-icon{display:block;width:clamp(106px,24vw,182px);height:75px;position:relative;background:repeating-linear-gradient(to right,#f6f2e7 0,#f6f2e7 calc(100% / 7 - 2px),#273042 calc(100% / 7 - 2px),#273042 calc(100% / 7));border:2px solid #273042;border-radius:6px;box-shadow:0 5px #10141d}.piano-icon i{position:absolute;background:#212a39;height:56%;width:8%;top:0;transform:translateX(-50%);border-radius:0 0 3px 3px}.piano-icon i:nth-child(1){left:14.285%}.piano-icon i:nth-child(2){left:28.57%}.piano-icon i:nth-child(3){left:57.14%}.piano-icon i:nth-child(4){left:71.43%}.piano-icon i:nth-child(5){left:85.71%}.masthead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.masthead strong{font-size:1.25rem}.difficulty{margin:18px 0 0}.round-setup{align-items:center;gap:10px 12px;margin:18px 0 0}.round-setup select{font:inherit;color:var(--ink);background:#2d3343;border:1px solid var(--line);border-radius:8px;padding:7px}.bonus-option{display:inline-flex;align-items:center;gap:6px}.bonus-option input{accent-color:var(--accent)}.quiz-stats{justify-content:center;flex-wrap:wrap;margin:0 0 16px}.quiz-stats .urgent{color:#ffd193}.results h2{font-size:clamp(2.4rem,9vw,4.8rem)}.results p{font-size:1.15rem}#replay{background:var(--accent);color:#18220d;border-color:var(--accent)}.chord-picker{max-height:230px}
+@media(max-width:400px){.guitar-icon{scale:.82}.instrument-card{gap:12px}}
 </style>
 <main>
-<header><h1>Chord Drill</h1><div class="stats"><span>Correct <b id="score">0</b></span><span>Streak <b id="streak">0</b></span></div></header>
-<fieldset><legend>Instrument</legend><button id="guitar" aria-pressed="true">Guitar</button><button id="piano" aria-pressed="false">Piano</button></fieldset>
-<fieldset id="sets"><legend>Practice set</legend><button id="openSet" aria-pressed="true">Basic &amp; open chords</button><button id="barreSet" aria-pressed="false">Barre chords</button><button id="allSet" aria-pressed="false">All chords</button></fieldset>
+<div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong></div>
+<section class="intro" id="intro" aria-labelledby="introTitle">
+<h1 id="introTitle" tabindex="-1">Chord Drill</h1>
+<p>Pick an instrument and play the chords on screen.</p>
+<div class="instrument-cards">
+<button class="instrument-card guitar-card" id="guitar"><span class="guitar-icon" aria-hidden="true"><i></i><i></i><i></i></span><span>Guitar</span></button>
+<button class="instrument-card piano-card" id="piano"><span class="piano-icon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span>Piano</span></button>
+</div>
+</section>
 <section class="card setup" id="setup" aria-labelledby="setupTitle">
-<h2 id="setupTitle">Choose your chords</h2>
+<h2 id="setupTitle" tabindex="-1">Choose your chords</h2>
+<fieldset class="difficulty" id="sets"><legend>Difficulty</legend>
+<button id="openSet" aria-pressed="true">Beginner</button><button id="intermediateSet" aria-pressed="false">Intermediate</button><button id="allSet" aria-pressed="false">Advanced</button><button id="barreSet" aria-pressed="false">Barre practice</button>
+</fieldset>
 <div class="selection-actions"><button id="selectAll">Select all</button><button id="clearAll">Clear selection</button></div>
 <div class="chord-picker" id="picker" role="group" aria-labelledby="setupTitle"></div>
 <fieldset class="inversions" id="inversions" hidden>
@@ -45,16 +57,27 @@
 <label><input type="checkbox" id="firstInversion"> First inversion</label>
 <label><input type="checkbox" id="secondInversion"> Second inversion</label>
 </fieldset>
+<fieldset class="round-setup"><legend>Round</legend>
+<label for="duration">Time limit</label>
+<select id="duration"><option value="0">Untimed</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60" selected>60 seconds</option><option value="90">90 seconds</option></select>
+<label class="bonus-option"><input id="bonus" type="checkbox" checked> +10 seconds every 5 correct</label>
+</fieldset>
 <div class="setup-footer"><p id="selectionCount" role="status"></p><button id="begin">Start quiz</button></div>
 </section>
 <section class="card" id="quiz" aria-label="Chord quiz" hidden>
+<div class="stats quiz-stats"><span>Correct <b id="score">0</b></span><span>Streak <b id="streak">0</b></span><span id="timedStats" hidden>Time <b id="clock">1:00</b> · Best <b id="best">0</b></span></div>
 <div>Play this chord</div><h2 id="target" tabindex="-1"></h2>
 <div id="status" role="status" aria-live="polite"></div>
 <div class="voicing" id="voicing" hidden></div>
 <details id="details"><summary>Show fingering</summary><div class="hint" id="hint"></div></details>
 <div class="actions"><button id="retryInput" hidden>Reconnect input</button><button id="stop" hidden>Stop input</button><button id="skip">Skip chord</button><button id="editSelection">Change chords</button></div>
 </section>
-<p class="foot" id="tip">Use standard tuning. Strum once per chord.</p>
+<section class="card results" id="results" hidden aria-labelledby="resultsTitle">
+<h2 id="resultsTitle" tabindex="-1">Time’s up</h2>
+<p id="resultScore"></p><p id="resultBest"></p>
+<div class="actions"><button id="replay">Play again</button><button id="resultSetup">Change settings</button></div>
+</section>
+<p class="foot" id="tip" hidden>Use standard tuning. Strum once per chord.</p>
 </main>
 <script>
 "use strict";
@@ -115,9 +138,70 @@ function makeGuitarChord(root,quality) {
   return [name,root,qualities[quality].map(value=>(value+root)%12),options];
 }
 const guitarChords=guitarRoots.flatMap((_,root)=>Object.keys(qualities).map(quality=>makeGuitarChord(root,quality)));
-let practice="openSet", shapeIndex=0, playing=false, quizChords=[];
+let practice="openSet", shapeIndex=0, playing=false, quizChords=[], screen="intro";
 const selections=new Map();
 const basicChords=new Set(["Am","A","E","Em","C","D","Dm","G","F"]);
+const intermediateChords=new Set([...basicChords,"A7","B7","Bm","C7","Cadd9","D7","Dsus4","E7","Em7","F#m","G7"]);
+const advancedChords=new Set([...intermediateChords,"Amaj7","Bb","Bbm","Bm7","C#m","Cmaj7","Cm","Dmaj7","Eb","F#","Fm","Fmaj7","G#m","Gdim","Gm","Gmaj7"]);
+const levels={
+  openSet:{notes:basicChords,time:60,bonus:true},
+  intermediateSet:{notes:intermediateChords,time:45,bonus:true},
+  allSet:{notes:advancedChords,time:30,bonus:false},
+  barreSet:{time:45,bonus:true}
+};
+const sessionSettings=new Map();
+const localBest=new Map();
+let roundSeconds=0, roundBonus=false, roundEnd=0, roundTick, recordKey="", recordBefore=0;
+
+function bestScore(key) {
+  try {return Number(localStorage.getItem(key))||0;}
+  catch {return localBest.get(key)||0;}
+}
+
+function roundSettings() {
+  return [ui.duration.value,ui.bonus.checked];
+}
+
+function syncRoundOptions() {
+  ui.bonus.disabled=Number(ui.duration.value)===0;
+  sessionSettings.set(instrument,roundSettings());
+}
+
+function showClock() {
+  const seconds=roundEnd ? Math.max(0,Math.ceil((roundEnd-performance.now())/1000)) : roundSeconds;
+  ui.clock.textContent=Math.floor(seconds/60)+":"+String(seconds%60).padStart(2,"0");
+  ui.clock.classList.toggle("urgent",seconds<=10);
+}
+
+function startRoundClock() {
+  if(!roundSeconds || roundEnd || !playing || !mode) return;
+  roundEnd=performance.now()+roundSeconds*1000;
+  showClock();
+  roundTick=setInterval(()=>{
+    showClock();
+    if(performance.now()>=roundEnd) finishRound();
+  },100);
+}
+
+function endRoundClock() {
+  clearInterval(roundTick);
+  roundEnd=0;
+}
+
+function finishRound() {
+  if(!playing) return;
+  playing=false;
+  screen="results";
+  endRoundClock();
+  stop();
+  const best=Math.max(recordBefore,bestScore(recordKey),count);
+  try {localStorage.setItem(recordKey,String(best));}
+  catch {localBest.set(recordKey,best);}
+  ui.resultScore.textContent=count+" correct";
+  ui.resultBest.textContent=(count>recordBefore && count===best?"New high score · ":"High score · ")+best;
+  controls();
+  ui.resultsTitle.focus();
+}
 const positionLabels=["Root position","First inversion","Second inversion"];
 
 let heardPiano=[];
@@ -229,24 +313,38 @@ function pianoSpectrumNotes(pitches) {
   return notes.sort((a,b)=>b.level-a.level).slice(0,8).map(note=>note.midi);
 }
 function availableChords() {
-  return instrument==="piano" ? chords : guitarChords.filter(chord=>
-      practice==="allSet" || (practice==="openSet" ? Object.hasOwn(openShapes,chord[0]) : chord[3].some(shape=>shape.barre)));
+  const catalog=instrument==="piano" ? chords : guitarChords;
+  if(practice==="barreSet") return catalog.filter(chord=>chord[3].some(shape=>shape.barre));
+  return catalog;
 }
-function chosenChords() {
-  const key=instrument==="piano" ? instrument : practice;
-  if(!selections.has(key)) {
-    selections.set(key,new Set(availableChords().map(chord=>chord[0]).filter(name=>basicChords.has(name))));
+
+const chosenChords=()=>{
+  if(!selections.has(instrument)) selections.set(instrument,new Set(basicChords));
+  return selections.get(instrument);
+};
+
+function selectLevel(id) {
+  practice=id;
+  const preset=levels[id];
+  selections.set(instrument,new Set(availableChords().filter(chord=>!preset.notes || preset.notes.has(chord[0])).map(chord=>chord[0])));
+  ui.duration.value=String(preset.time);
+  ui.bonus.checked=preset.bonus;
+  if(instrument==="piano"){
+    ui.firstInversion.checked=id!=="openSet";
+    ui.secondInversion.checked=id==="allSet";
   }
-  return selections.get(key);
+  syncRoundOptions();
+  drawSelection();
 }
 function updateSelection() {
-  const count=chosenChords().size;
+  const count=availableChords().filter(chord=>chosenChords().has(chord[0])).length;
   ui.selectionCount.textContent=count+" of "+availableChords().length+" selected";
   ui.begin.disabled=count===0;
 }
 function drawSelection() {
   const chosen=chosenChords();
   ui.picker.replaceChildren();
+  for(const id of Object.keys(levels))ui[id].setAttribute("aria-pressed",String(practice===id));
   for(const [name] of availableChords()){
     const label=document.createElement("label");
     label.className="chord-option";
@@ -273,7 +371,9 @@ function setAllChords(select) {
   updateSelection();
 }
 function showSetup() {
+  screen="setup";
   playing=false;
+  endRoundClock();
   stop();
   deck=[];
   drawSelection();
@@ -281,7 +381,7 @@ function showSetup() {
 }
 function beginQuiz() {
   const chosen=chosenChords();
-  if(!chosen.size) return;
+  if(!availableChords().some(chord=>chosen.has(chord[0]))) return;
   quizChords=availableChords().filter(chord=>chosen.has(chord[0]));
   if(instrument==="piano"){
     const positions=[0];
@@ -289,6 +389,13 @@ function beginQuiz() {
     if(ui.secondInversion.checked) positions.push(2);
     quizChords=quizChords.flatMap(chord=>positions.map(position=>[...chord,position]));
   }
+  endRoundClock();
+  [roundSeconds,roundBonus]=[Number(ui.duration.value),ui.bonus.checked];
+  recordKey="chord-drill:best:"+JSON.stringify([instrument,roundSeconds,roundBonus,quizChords.map(chord=>chord[0]+"/"+(chord[4]??"")).sort()]);
+  recordBefore=roundSeconds ? bestScore(recordKey) : 0;
+  ui.best.textContent=recordBefore;
+  showClock();
+  screen="quiz";
   deck=[];
   target=null;
   count=0;
@@ -352,8 +459,14 @@ function status(message, style="") {
 function controls() {
   ui.retryInput.hidden=Boolean(mode) || busy;
   ui.stop.hidden=!mode;
-  ui.sets.hidden=instrument!=="guitar" || playing;
-  ui.setup.hidden=playing;
+  ui.intro.hidden=screen!=="intro";
+  ui.masthead.hidden=screen==="intro";
+  ui.homeButton.disabled=busy;
+  ui.setup.hidden=screen!=="setup";
+  ui.results.hidden=screen!=="results";
+  ui.tip.hidden=screen!=="quiz";
+  ui.timedStats.hidden=!roundSeconds;
+  ui.barreSet.hidden=instrument!=="guitar";
   ui.inversions.hidden=instrument!=="piano";
   ui.details.hidden=instrument!=="guitar";
   ui.voicing.hidden=instrument!=="piano";
@@ -431,14 +544,17 @@ function playCorrectCue() {
 }
 
 function answer(name) {
-  if(advance) return;
+  if(!playing || advance) return;
+  if(roundEnd && performance.now()>=roundEnd){finishRound();return;}
   if(name===target[0]) {
     count++;
     streak++;
     armed=false;
     if(mode==="mic"){lastMicAnswer=name;micReattacked=false;}
     updateScore();
-    status("Correct! "+name,"correct");
+    const earnedTime=roundEnd && roundBonus && count%5===0;
+    if(earnedTime){roundEnd+=10000;showClock();}
+    status("Correct! "+name+(earnedTime?" · +10 seconds":""),"correct");
     playCorrectCue();
     advance=setTimeout(nextChord,450);
   } else {
@@ -481,15 +597,30 @@ function stop() {
   if(pending) nextChord();
   else status(idleMessage());
 }
+const instrumentLevels=new Map();
+function showIntro() {
+  if(busy) return;
+  screen="intro";
+  playing=false;
+  endRoundClock();
+  stop();
+  ui.introTitle.focus();
+}
 function switchInstrument(value) {
-  if(value===instrument || busy) return;
+  if(busy) return;
+  instrumentLevels.set(instrument,practice);
   instrument=value;
+  practice=instrumentLevels.get(instrument)||"openSet";
+  const [duration,bonus]=sessionSettings.get(instrument)||["60",true];
+  ui.duration.value=duration;
+  ui.bonus.checked=bonus;
+  syncRoundOptions();
   count=0;
   streak=0;
   updateScore();
-  for(const name of ["guitar","piano"]) ui[name].setAttribute("aria-pressed",String(name===value));
   ui.tip.textContent=value==="guitar" ? "Use standard tuning. Strum once per chord." : "Play the chord tones together in any inversion. Release the keys between chords when using MIDI.";
   showSetup();
+  ui.setupTitle.focus();
 }
 function spectralPitches(spectrum,binHz) {
   const pitches=new Float64Array(100);
@@ -602,8 +733,9 @@ function canGradeMic(name) {
 
 async function connectInput() {
   if(!playing || busy || mode) return;
-  if(instrument==="piano" && await startMidi()) return;
-  if(playing) return startMic();
+  const midiReady=instrument==="piano" && await startMidi();
+  if(!midiReady && playing) await startMic();
+  startRoundClock();
 }
 
 async function startMic() {
@@ -732,14 +864,11 @@ async function startMidi() {
     controls();
   }
 }
-for(const id of ["openSet","barreSet","allSet"]){
-  ui[id].onclick=()=>{
-    if(practice===id) return;
-    practice=id;
-    for(const choice of ["openSet","barreSet","allSet"])ui[choice].setAttribute("aria-pressed",String(choice===id));
-    drawSelection();
-  };
-}
+for(const id of Object.keys(levels)) ui[id].onclick=()=>selectLevel(id);
+ui.duration.onchange=ui.bonus.onchange=syncRoundOptions;
+ui.homeButton.onclick=showIntro;
+ui.replay.onclick=beginQuiz;
+ui.resultSetup.onclick=()=>{showSetup();ui.setupTitle.focus();};
 ui.selectAll.onclick=()=>setAllChords(true);
 ui.clearAll.onclick=()=>setAllChords(false);
 ui.begin.onclick=beginQuiz;
@@ -750,11 +879,12 @@ ui.retryInput.onclick=connectInput;
 ui.stop.onclick=stop;
 ui.skip.onclick=()=>{if(!advance) streak=0;updateScore();nextChord();};
 window.addEventListener("pagehide",()=>{
+  endRoundClock();
   stop();
   if(feedbackAudio && feedbackAudio.state!=="closed") feedbackAudio.close().catch(()=>{});
   feedbackAudio=null;
 });
-showSetup();
+controls();
 </script>
 </html>
 
