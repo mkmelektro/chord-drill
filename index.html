@@ -1183,6 +1183,24 @@ function resetFftPlot() {
   paintFft(null);
 }
 
+function connectMicrophoneInput(audio,media,output) {
+  const source=audio.createMediaStreamSource(media);
+  const inputLevel=audio.createGain();
+  inputLevel.gain.value=2;
+  source.connect(inputLevel);
+  inputLevel.connect(output);
+  return inputLevel.gain;
+}
+
+function updateInputGain(gain,level,now) {
+  const current=gain.value;
+  const rawLevel=level/current;
+  if(rawLevel<.0007) return;
+  const desired=Math.max(.75,Math.min(6,.025/rawLevel));
+  if(Math.abs(desired/current-1)<.10) return;
+  gain.setTargetAtTime(desired,now,desired>current?.24:.075);
+}
+
 async function startMic() {
   if(busy || mode) return;
   if(!navigator.mediaDevices?.getUserMedia) {
@@ -1199,7 +1217,7 @@ async function startMic() {
     analyser=context.createAnalyser();
     analyser.fftSize=8192;
     analyser.smoothingTimeConstant=.18;
-    context.createMediaStreamSource(stream).connect(analyser);
+    const inputGain=connectMicrophoneInput(context,stream,analyser);
     const time=new Float32Array(analyser.fftSize);
     const spectrum=new Float32Array(analyser.frequencyBinCount);
     mode="mic";
@@ -1213,6 +1231,7 @@ async function startMic() {
       let power=0;
       for(let index=time.length-1024;index<time.length;index++) power+=time[index]*time[index];
       const level=Math.sqrt(power/1024);
+      updateInputGain(inputGain,level,context.currentTime);
       const signalFloor=instrument==="guitar" ? guitarProfile?.signalFloor??.0025 : .0025;
       if(level<signalFloor || level>Math.max(signalFloor*1.6,recentLevel*1.65)) micReattacked=true;
       recentLevel=level*.6+recentLevel*.4;
