@@ -579,6 +579,7 @@ function spectralPeakMidi(spectrum,bin,binHz) {
 }
 
 const guitarMinHz=75, guitarMaxHz=1350;
+const calibratedPitchTolerance=.31+.03;
 
 function openStringPeaks(spectrum,binHz) {
   return guitarTuning.map(note=>{
@@ -940,7 +941,7 @@ function spectralPitches(spectrum,binHz,expected=null) {
         const string=expected.get(candidate);
         if(!string) continue;
         const corrected=Math.abs(candidate+string.detune-midi);
-        if(corrected<=.31 && corrected<error){note=candidate;error=corrected;}
+        if(corrected<=calibratedPitchTolerance && corrected<error){note=candidate;error=corrected;}
       }
     }
     if(note<(guitar?30:24) || note>=pitches.length || error>.38) continue;
