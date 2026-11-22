@@ -80,7 +80,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 </section>
 <section class="song-screen" id="songSearch" hidden aria-labelledby="songSearchTitle">
 <h2 id="songSearchTitle">Find a song</h2>
-<form id="songSearchForm" class="song-form"><label class="sr-only" for="songQuery">Song title or artist</label><input id="songQuery" type="search" placeholder="Song title or artist" maxlength="120"><button type="submit">Search</button></form>
+<form id="songSearchForm" class="song-form"><label class="sr-only" for="songQuery">Song title or artist</label><input id="songQuery" type="search" placeholder="Song title, artist, or Pesmarica link" maxlength="1200"><button type="submit">Search</button></form>
 <p id="songSearchStatus" role="status"></p>
 <div class="song-grid" id="songResults"></div>
 <div class="song-links"><a id="songPesmarica" target="_blank" rel="noopener noreferrer" hidden>Search Pesmarica</a><a id="songGoogle" target="_blank" rel="noopener noreferrer" hidden>Search chords on Google</a><button id="songManual" hidden>Use this title</button><button id="songModeBack">Back to modes</button></div>
@@ -92,8 +92,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <textarea id="songSheetInput" rows="7" maxlength="80000" spellcheck="false" placeholder="[Am]First line… or paste chords on their own lines."></textarea>
 <label class="song-notation"><input id="germanChords" type="checkbox"> H = B, B = B♭ (regional notation)</label>
 <p id="chartStatus" role="status"></p>
-<div class="song-links"><a id="chartPesmarica" target="_blank" rel="noopener noreferrer">Pesmarica</a><a id="chartGoogle" target="_blank" rel="noopener noreferrer">Find charts on Google</a><a id="chartSource" target="_blank" rel="noopener noreferrer" hidden>Chart source</a></div>
-<details class="song-details"><summary>Import from a chart URL</summary>
+<div class="song-links"><a id="chartPesmarica" target="_blank" rel="noopener noreferrer">Pesmarica</a><a id="chartGoogle" target="_blank" rel="noopener noreferrer">Find charts on Google</a><a id="chartAkordiOnline" target="_blank" rel="noopener noreferrer">Akordi Online</a><a id="chartAkordiOrg" target="_blank" rel="noopener noreferrer">Akordi.org</a><a id="chartAkordiZaGitaru" target="_blank" rel="noopener noreferrer">Akordi za Gitaru</a><a id="chartChordHop" target="_blank" rel="noopener noreferrer">ChordHop</a><a id="chartSource" target="_blank" rel="noopener noreferrer" hidden>Chart source</a></div>
+<details class="song-details"><summary>Import from a chart URL</summary><p>Import chords from Pesmarica and Akordi Online, or chords and public-domain lyrics from ChordHop. You can also paste chords and lyrics into the editor above.</p>
 <div class="song-form"><label class="sr-only" for="chartUrl">Public chart URL</label><input id="chartUrl" type="url" placeholder="https://…" maxlength="1500"><button id="importChart">Import chart</button></div>
 </details>
 <div class="song-links"><button id="songEditorBack">Find another song</button><button class="song-primary" id="startSong">Play song</button></div>
@@ -1735,6 +1735,7 @@ function orderedSongTones(chord) {
   const root=chord[1];
   return [...chord[2]].sort((a,b)=>(a-root+12)%12-(b-root+12)%12);
 }
+const pesmaricaImportEndpoint="https://chord-drill-import.mkm-elektro123.workers.dev/api/pesmarica";
 const songCatalog=[
   {title:"Ajde Jano",artist:"Narodne pesme",video:"RINL0mqSy74",source:"https://www.pesmarica.rs/akordi/7572/Narodne-pesme--Ajde-Jano",sheet:`[Em]Ajde Jano, [A7]kolo da [D]igramo
 [G]Ajde Jano, [Am]ajde dušo, [Em]kolo da [A7]igramo [C][B7][Em]`},
@@ -1871,10 +1872,95 @@ function renderSongResults(results,query) {
   }
 }
 
+function pesmaricaChartLink(value) {
+  try {
+    const url=new URL(value);
+    if(url.protocol!=="https:" || !["pesmarica.rs","www.pesmarica.rs"].includes(url.hostname) ||
+       url.username || url.password || url.port || !/^\/akordi\/[1-9]\d{0,8}(?:\/[^/]+)?\/?$/i.test(url.pathname)) return null;
+    url.hostname="www.pesmarica.rs";
+    url.search="";
+    url.hash="";
+    return url;
+  } catch {return null;}
+}
+
+function supportedChartLink(value) {
+  const pesmarica=pesmaricaChartLink(value);
+  if(pesmarica) return pesmarica;
+  try {
+    const url=new URL(value);
+    if(url.protocol!=="https:" || url.username || url.password || url.port) return null;
+    if(url.hostname==="chordhop.com") url.hostname="www.chordhop.com";
+    const allowed=url.hostname==="www.chordhop.com" ? /^\/songs\/[a-z0-9-]{1,160}\/?$/.test(url.pathname)
+      : url.hostname==="akordi-online.com" && /^\/content\/[^/]{1,200}\/?$/.test(url.pathname);
+    if(!allowed) return null;
+    url.search="";
+    url.hash="";
+    return url;
+  } catch {return null;}
+}
+
+function pesmaricaId(url){return url.pathname.split("/")[2];}
+function cachedPesmaricaChart(url) {
+  return songCatalog.find(song=>song.source && pesmaricaChartLink(song.source) &&
+    pesmaricaId(pesmaricaChartLink(song.source))===pesmaricaId(url));
+}
+
+function applyPesmaricaChart(chart,expected,source) {
+  if(songSelection!==expected) return;
+  if(typeof chart.title==="string" && chart.title.trim()){
+    songSelection.title=chart.title.trim().slice(0,120);
+    ui.songName.textContent=songSelection.title;
+  }
+  if(!Array.isArray(chart.chords) || !chart.chords.length ||
+     chart.chords.length>600 || !chart.chords.every(chord=>typeof chord==="string" && chordSymbols.test(chord)))
+    throw Error("The importer did not return a usable chord sequence.");
+  songSelection.source=source.href;
+  ui.chartSource.hidden=false;
+  ui.chartSource.href=source.href;
+  if(pesmaricaChartLink(source.href)) ui.chartPesmarica.href=source.href;
+  ui.germanChords.checked=chart.regionalNotation===true;
+  const rows=[];
+  for(let index=0;index<chart.chords.length;index+=8) rows.push(chart.chords.slice(index,index+8).join(" "));
+  const sheet=typeof chart.sheet==="string" ? chart.sheet.slice(0,80000) : "";
+  ui.songSheetInput.value=sheet && parseSongSheet(sheet,ui.germanChords.checked).steps.length ? sheet : rows.join("\n");
+  updateSongSheet();
+}
+
+async function importPesmarica(source,expected) {
+  const cached=cachedPesmaricaChart(source);
+  if(!pesmaricaImportEndpoint){
+    if(cached){
+      ui.songSheetInput.value=cached.sheet;
+      ui.germanChords.checked=false;
+      updateSongSheet();
+      return;
+    }
+    throw Error("Direct Pesmarica import is awaiting hosting. Open Pesmarica and paste the chord sheet here.");
+  }
+  const request=new URL(pesmaricaImportEndpoint);
+  request.searchParams.set("url",source.href);
+  const result=await fetch(request,{credentials:"omit",signal:AbortSignal.timeout(9000)});
+  const chart=await result.json();
+  if(!result.ok) throw Error(typeof chart.error==="string"?chart.error:"Could not import this chart.");
+  applyPesmaricaChart(chart,expected,source);
+}
+
 let latestTrackQuery=0;
 async function submitSongSearch(event) {
   event.preventDefault();
-  const query=ui.songQuery.value.trim();
+  const raw=ui.songQuery.value.trim();
+  const source=supportedChartLink(raw);
+  if(source){
+    latestTrackQuery++;
+    const known=pesmaricaChartLink(source.href) && cachedPesmaricaChart(source);
+    const slug=decodeURIComponent(source.pathname.split("/").filter(Boolean).at(-1)||"").split("--").at(-1).replace(/-/g," ");
+    openSong(known||{title:slug||"Song chart",artist:"",source:source.href});
+    ui.chartUrl.value=source.href;
+    await importSongChart();
+    return;
+  }
+  const query=raw.slice(0,120);
   const serial=++latestTrackQuery;
   if(!query){renderSongResults(songCatalog,"");ui.songSearchStatus.textContent="";return;}
   const words=songNormalize(query).split(" ").filter(Boolean);
@@ -1960,6 +2046,8 @@ async function importSongChart() {
     const url=new URL(source);
     if(url.protocol!=="https:" || url.username || url.password) throw Error("Use a public HTTPS chart URL.");
     ui.chartStatus.textContent="Loading chart…";
+    const supported=supportedChartLink(url.href);
+    if(supported){await importPesmarica(supported,expected);return;}
     const response=await fetch(url,{credentials:"omit",signal:AbortSignal.timeout(8500)});
     if(!response.ok) throw Error("The source did not return a chart. Paste the chord sheet instead.");
     if(Number(response.headers.get("content-length"))>2000000) throw Error("This chart page is too large to import. Paste its chord sheet instead.");
@@ -2000,6 +2088,10 @@ function openSong(result) {
   clearSongVideo();
   const query=[result.title,result.artist].filter(Boolean).join(" ");
   ui.chartGoogle.href=googleSongUrl(query);
+  for(const [link,host] of [[ui.chartAkordiOnline,"akordi-online.com"],[ui.chartAkordiOrg,"akordi.org"],
+    [ui.chartAkordiZaGitaru,"akordi-za-gitaru.com"],[ui.chartChordHop,"chordhop.com"]]){
+    link.href="https://www.google.com/search?"+new URLSearchParams({q:query+" site:"+host});
+  }
   ui.chartPesmarica.href=result.source?.includes("pesmarica.rs") ? result.source : googleSongUrl(query,true);
   ui.chartSource.hidden=!result.source;
   if(result.source) ui.chartSource.href=result.source;
@@ -2117,6 +2209,3 @@ connectSongUi();
 controls();
 </script>
 </html>
-
-
-
