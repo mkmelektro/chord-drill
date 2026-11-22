@@ -822,21 +822,21 @@ function primeFeedbackAudio() {
 function playCorrectCue() {
   if(feedbackAudio?.state!=="running") return;
   const start=feedbackAudio.currentTime+.008;
-  feedbackUntil=start+.42;
+  feedbackUntil=start+.55;
   const cue=[{note:48,volume:.40},{note:72,volume:.25},{note:96,volume:.135}];
   for(const [index,{note,volume}] of cue.entries()){
-    const time=start+index*.075;
+    const time=start+index*.11;
     const oscillator=feedbackAudio.createOscillator();
     const gain=feedbackAudio.createGain();
     oscillator.type="sine";
     oscillator.frequency.value=440*2**((note-69)/12);
     gain.gain.setValueAtTime(.0001,time);
-    gain.gain.exponentialRampToValueAtTime(volume,time+.009);
-    gain.gain.exponentialRampToValueAtTime(.0001,time+.090);
+    gain.gain.exponentialRampToValueAtTime(volume,time+.012);
+    gain.gain.exponentialRampToValueAtTime(.0001,time+.165);
     oscillator.connect(gain).connect(feedbackAudio.destination);
     oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
     oscillator.start(time);
-    oscillator.stop(time+.095);
+    oscillator.stop(time+.17);
   }
 }
 
@@ -853,7 +853,7 @@ function answer(name) {
     if(earnedTime){roundEnd+=10000;showClock();}
     status("Correct! "+name+(earnedTime?" · +10 seconds":""),"correct");
     playCorrectCue();
-    advance=setTimeout(nextChord,450);
+    advance=setTimeout(nextChord,565);
   } else {
     streak=0;
     updateScore();
