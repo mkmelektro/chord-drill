@@ -50,6 +50,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 @media(max-width:470px){.mode-cards{grid-template-columns:1fr}.mode-card{min-height:0;padding:18px}.unlimited-card{display:grid;grid-template-columns:auto 1fr;text-align:left;column-gap:15px;row-gap:4px;justify-items:start}.unlimited-card .mode-icon{grid-row:span 2;height:auto;font-size:3.6rem}.rush-card{gap:8px}.rush-card .mode-icon{scale:.75;margin:0}}
 
 .fft-debug{margin-top:16px;padding:13px 10px 7px;background:var(--panel);border:1px solid var(--line);border-radius:14px}.fft-debug summary{width:auto;font-weight:700;margin:0 4px;padding:4px}.fft-debug p{font-size:.85rem;font-variant-numeric:tabular-nums;margin:8px 4px 0;min-height:1.3em}.fft-debug canvas{display:block;width:100%;height:clamp(178px,31vw,238px)}
+.fft-debug canvas{cursor:crosshair}.fft-debug canvas:focus-visible{outline:2px solid #88ceff;outline-offset:2px}.fft-debug .fft-bins{margin:0 4px 7px;color:#a7d9f7}
 </style>
 <main id="appRoot">
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong><button id="fullscreenToggle" aria-pressed="false">Full screen</button></div>
@@ -119,7 +120,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <details class="fft-debug" id="fftDebug" open hidden>
 <summary>FFT debug</summary>
 <p id="fftReadout">Waiting for microphone input.</p>
-<canvas id="fftCanvas" role="img" aria-label="Live microphone spectrum. Logarithmic frequency in hertz and level in decibels."></canvas>
+<canvas id="fftCanvas" tabindex="0" role="img" aria-label="Live FFT spectrum with one bar per bin. Use left and right arrow keys to inspect bins."></canvas>
+<p class="fft-bins" id="fftBinReadout">Move over the graph or tap a bar to inspect a bin.</p>
 </details>
 <section class="card results" id="results" hidden aria-labelledby="resultsTitle">
 <h2 id="resultsTitle" tabindex="-1">Time’s up</h2>
@@ -1062,8 +1064,27 @@ async function connectInput() {
   startRoundClock();
 }
 
-const fftMinHz=30, fftMaxHz=4000, fftMinDb=-100;
-let fftPlot;
+const fftMinHz=30, fftMaxHz=4000, fftMinDb=-100, fftLeft=43, fftRight=12;
+const fftScale=Math.log(fftMaxHz/fftMinHz);
+let fftPlot, fftFrame, selectedBin=null;
+
+function inspectFftBin(index) {
+  if(!fftFrame) return;
+  const {spectrum,binHz,sampleRate,first,last}=fftFrame;
+  selectedBin=index===null ? null : Math.max(first,Math.min(last,index));
+  paintFft(spectrum,binHz,sampleRate);
+}
+
+function selectFftBinAt(event) {
+  if(!fftFrame) return;
+  const rect=ui.fftCanvas.getBoundingClientRect();
+  const plotWidth=rect.width-fftLeft-fftRight;
+  if(plotWidth<=0) return;
+  const fraction=(event.clientX-rect.left-fftLeft)/plotWidth;
+  if(fraction<0 || fraction>1) return;
+  const hz=fftMinHz*Math.exp(fraction*fftScale);
+  inspectFftBin(Math.round(hz/fftFrame.binHz));
+}
 
 function paintFft(spectrum,binHz,sampleRate) {
   if(ui.fftDebug.hidden || !ui.fftDebug.open) return;
@@ -1081,10 +1102,9 @@ function paintFft(spectrum,binHz,sampleRate) {
   const plot=fftPlot;
   plot.setTransform(ratio,0,0,ratio,0,0);
   plot.clearRect(0,0,width,height);
-  const left=43, top=12, right=width-12, bottom=height-27;
+  const left=fftLeft, top=12, right=width-fftRight, bottom=height-27;
   if(right<=left) return;
-  const scale=Math.log(fftMaxHz/fftMinHz);
-  const xFor=hz=>left+Math.log(hz/fftMinHz)/scale*(right-left);
+  const xFor=hz=>left+Math.log(hz/fftMinHz)/fftScale*(right-left);
   const yFor=db=>top+Math.min(1,Math.max(0,db/fftMinDb))*(bottom-top);
   plot.font="11px system-ui";
   plot.lineWidth=1;
@@ -1111,19 +1131,40 @@ function paintFft(spectrum,binHz,sampleRate) {
   if(!spectrum) return;
   const first=Math.max(1,Math.ceil(fftMinHz/binHz));
   const last=Math.min(spectrum.length-2,Math.floor(fftMaxHz/binHz));
+  if(first>last) return;
   let peak=first;
+  plot.fillStyle="#67bceb66";
   plot.strokeStyle="#a9e96b";
   plot.lineWidth=1.5;
   plot.beginPath();
   for(let bin=first;bin<=last;bin++){
     const x=xFor(bin*binHz);
     const y=yFor(Math.max(fftMinDb,spectrum[bin]));
+    const low=Math.max(left,xFor((bin-.5)*binHz));
+    const high=Math.min(right,xFor((bin+.5)*binHz));
+    if(y<bottom) plot.fillRect(low,y,Math.max(.35,high-low-.35),bottom-y);
     if(bin===first) plot.moveTo(x,y);
     else plot.lineTo(x,y);
     if(spectrum[bin]>spectrum[peak]) peak=bin;
   }
   plot.stroke();
-  if(peak<=last && spectrum[peak]>fftMinDb){
+  fftFrame={spectrum,binHz,sampleRate,first,last,peak};
+  if(selectedBin!==null) selectedBin=Math.max(first,Math.min(last,selectedBin));
+  const bin=selectedBin??peak;
+  const hz=bin*binHz;
+  const db=spectrum[bin];
+  const level=Number.isFinite(db)?db.toFixed(1):"−∞";
+  ui.fftBinReadout.textContent=(selectedBin===null?"Peak bin ":"Bin ")+bin+" · "+hz.toFixed(2)+" Hz · "+level+" dB · Δf "+binHz.toFixed(2)+" Hz";
+  if(selectedBin!==null){
+    const x=xFor(hz);
+    const low=Math.max(left,xFor((bin-.5)*binHz));
+    const high=Math.min(right,xFor((bin+.5)*binHz));
+    plot.fillStyle="#88ceff40";
+    plot.fillRect(low,top,Math.max(1,high-low),bottom-top);
+    plot.strokeStyle="#88ceff";
+    plot.beginPath();plot.moveTo(x,top);plot.lineTo(x,bottom);plot.stroke();
+  }
+  if(spectrum[peak]>fftMinDb){
     const midi=spectralPeakMidi(spectrum,peak,binHz);
     const hz=440*2**((midi-69)/12);
     const note=Math.round(midi);
@@ -1135,6 +1176,9 @@ function paintFft(spectrum,binHz,sampleRate) {
 }
 
 function resetFftPlot() {
+  fftFrame=null;
+  selectedBin=null;
+  ui.fftBinReadout.textContent="Move over the graph or tap a bar to inspect a bin.";
   ui.fftReadout.textContent=mode==="midi" ? "MIDI sends notes directly. FFT is available with microphone input." : "Waiting for microphone input.";
   paintFft(null);
 }
@@ -1275,6 +1319,16 @@ for(const id of Object.keys(levelDescriptions.guitar)) ui[id].onclick=()=>select
 ui.homeButton.onclick=showIntro;
 ui.fullscreenToggle.onclick=toggleFullscreen;
 ui.fftDebug.ontoggle=()=>{if(mode!=="mic") resetFftPlot();};
+ui.fftCanvas.onpointerdown=selectFftBinAt;
+ui.fftCanvas.onpointermove=event=>{if(event.pointerType==="mouse") selectFftBinAt(event);};
+ui.fftCanvas.onpointerleave=event=>{if(event.pointerType==="mouse") inspectFftBin(null);};
+ui.fftCanvas.onkeydown=event=>{
+  if(!fftFrame) return;
+  if(event.key==="Escape" && selectedBin!==null){inspectFftBin(null);return;}
+  if(event.key!=="ArrowLeft" && event.key!=="ArrowRight") return;
+  event.preventDefault();
+  inspectFftBin((selectedBin??fftFrame.peak)+(event.key==="ArrowRight"?1:-1));
+};
 ui.replay.onclick=()=>beginQuiz(roundSeconds);
 ui.resultSetup.onclick=showTimeSetup;
 ui.selectAll.onclick=()=>setAllChords(true);
