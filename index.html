@@ -109,7 +109,7 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <p class="screen-status" id="screenStatus" hidden></p>
 <div id="calibrationPanel" hidden>
 <h2 class="calibration-title" id="calibrationTitle" tabindex="-1">Calibrate guitar</h2>
-<p>Strum all six open strings once, from low E to high E. Let them ring.</p>
+<p>Wait for Ready, then strum all six open strings once, from low E to high E. Let them ring.</p>
 <div class="calibration-strings" id="calibrationStrings" aria-label="Strings detected"></div>
 <p id="calibrationStatus" role="status">Connecting microphone…</p>
 <div class="actions"><button id="retryCalibrationInput" hidden>Reconnect microphone</button><button id="skipCalibration">Skip calibration</button><button id="leaveCalibration">Change chords</button></div>
@@ -570,7 +570,7 @@ function resetGuitarCalibration() {
   guitarProfile=null;
   drawFftCalibration();
   calibration=instrument==="guitar" ? {
-    notes:Array(6).fill(null), noisePitches:new Float64Array(100), started:0, readyAfter:0, noise:0, peakLevel:0, previousLevel:0, message:""
+    notes:Array(6).fill(null), evidence:Array(6).fill(null), noisePitches:new Float64Array(100), sampleStarted:null, started:0, readyAfter:0, noise:0, peakLevel:0, previousLevel:0, message:""
   } : null;
   setLiveTuning(null);
   if(calibration) drawCalibration("Connecting microphone…");
@@ -734,29 +734,45 @@ function collectCalibration(spectrum,binHz,level,now,agcGain=1,adaptive=null) {
     return;
   }
   const rawLevel=level/agcGain;
+  if(state.sampleStarted===null){
+    state.sampleStarted=now;
+    state.noise=rawLevel;
+  }
+  if(now-state.sampleStarted<700){
+    state.noise=state.noise*.77+rawLevel*.23;
+    state.previousLevel=rawLevel;
+    const background=spectralPitches(spectrum,binHz);
+    for(let note=0;note<background.length;note++)
+      state.noisePitches[note]=Math.max(state.noisePitches[note]*.94,background[note]/agcGain);
+    drawCalibration("Keep quiet briefly. Measuring background noise…");
+    return;
+  }
   if(!state.started){
-    const trigger=Math.max(.0006,state.noise*3);
-    const attack=rawLevel>trigger && (!state.retry || rawLevel>state.previousLevel*1.8);
+    const trigger=Math.max(.0006,state.noise*3.8);
+    const attack=rawLevel>trigger && rawLevel>state.previousLevel*1.65 && (!adaptive || adaptive.active);
     state.previousLevel=rawLevel;
     if(!attack){
-      if(rawLevel<trigger && !state.retry){
-        state.noise=state.noise*.9+rawLevel*.1;
-        const background=spectralPitches(spectrum,binHz);
-        for(let note=0;note<background.length;note++)
-          state.noisePitches[note]=Math.max(state.noisePitches[note]*.96,background[note]/agcGain);
-      }
+      if(!state.retry) drawCalibration("Ready. Strum the six open strings once.");
       return;
     }
     state.started=now;
-    state.peakLevel=rawLevel;
   }
   state.peakLevel=Math.max(state.peakLevel,rawLevel);
   for(const [index,note] of openStringPeaks(spectrum,binHz,adaptive,agcGain).entries()){
-    if(!note) continue;
+    const threshold=Math.max(.000025,state.noise*.15,state.noisePitches[guitarTuning[index]]*4);
+    if(!note || note.amplitude/agcGain<threshold){
+      state.evidence[index]=null;
+      continue;
+    }
     note.amplitude/=agcGain;
-    if(!state.notes[index] || note.amplitude>state.notes[index].amplitude) state.notes[index]=note;
+    const previous=state.evidence[index];
+    const consistent=previous && Math.abs(previous.offset-note.offset)<.20;
+    const frames=consistent ? previous.frames+1 : 1;
+    const best=consistent && previous.best.amplitude>note.amplitude ? previous.best : note;
+    state.evidence[index]={frames,offset:note.offset,best};
+    if(frames>=3 && (!state.notes[index] || best.amplitude>state.notes[index].amplitude)) state.notes[index]=best;
   }
-  if(now-state.started<760){
+  if(now-state.started<1000){
     drawCalibration("Listening to the open strings…");
     return;
   }
@@ -768,9 +784,11 @@ function collectCalibration(spectrum,binHz,level,now,agcGain=1,adaptive=null) {
     return;
   }
   for(const index of result.missing) state.notes[index]=null;
-  drawCalibration("Could not hear "+result.missing.map(index=>openStringNames[index]).join(", ")+". Strum all six open strings again.");
+  drawCalibration("Could not confirm "+result.missing.map(index=>openStringNames[index]).join(", ")+". Strum all six open strings again.");
   state.notes=Array(6).fill(null);
+  state.evidence=Array(6).fill(null);
   state.started=0;
+  state.peakLevel=0;
   state.retry=true;
   state.previousLevel=rawLevel;
 }
@@ -1464,7 +1482,7 @@ async function startMic() {
     let spectrum=new Float32Array(analyser.frequencyBinCount);
     const adaptive=instrument==="guitar" ? {} : null;
     mode="mic";
-    if(calibration) drawCalibration("Ready. Strum the six open strings once.");
+    if(calibration) drawCalibration("Keep quiet briefly. Measuring background noise…");
     for(const track of stream.getTracks()) track.addEventListener("ended",()=>{
       if(mode==="mic"){stop();status("The microphone was disconnected.","retry");}
     });
