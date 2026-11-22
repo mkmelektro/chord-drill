@@ -2062,6 +2062,9 @@ async function importSongChart() {
     if(!chart || !parseSongSheet(chart,ui.germanChords.checked).steps.length)
       throw Error("No recognizable chord lines found. Paste the chord sheet instead.");
     ui.songSheetInput.value=chart.slice(0,80000);
+    songSelection.source=url.href;
+    ui.chartSource.href=url.href;
+    ui.chartSource.hidden=false;
     updateSongSheet();
   } catch(error) {
     if(songSelection===expected) ui.chartStatus.textContent=error instanceof TypeError || error.name==="TimeoutError"
