@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Practice guitar and piano chords with your microphone or a MIDI keyboard.">
+<title>Chord Drill</title>
+<style>
+:root{color-scheme:dark;--ink:#f6f2e7;--muted:#b9bdc9;--panel:#222735;--accent:#c9ff69;--line:#454b5b}
+*{box-sizing:border-box}body{margin:0;background:#141822;color:var(--ink);font:16px system-ui,sans-serif}main{width:min(720px,100% - 32px);margin:42px auto}header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}h1{font-size:clamp(2.1rem,7vw,3.5rem);letter-spacing:-.065em;margin:0;line-height:1}p{color:var(--muted)}fieldset{border:0;padding:0;margin:1.4rem 0;display:flex;gap:8px;flex-wrap:wrap}legend{margin-bottom:8px;color:var(--muted)}button{font:inherit;font-weight:650;color:inherit;background:#2d3343;border:1px solid var(--line);border-radius:9px;padding:10px 15px;cursor:pointer}button:hover{border-color:var(--accent)}button:disabled{opacity:.55;cursor:default}button[aria-pressed=true],#mic,#midi{background:var(--accent);color:#18220d;border-color:var(--accent)}button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.stats{display:flex;gap:14px;color:var(--muted);font-variant-numeric:tabular-nums}.stats b{color:var(--ink)}.card{background:var(--panel);border:1px solid var(--line);border-radius:22px;text-align:center;padding:24px 16px}[hidden]{display:none!important}h2{font-size:clamp(3.2rem,13vw,7rem);line-height:1;margin:6px 0 10px;letter-spacing:-.07em;color:var(--accent)}#status{min-height:3em; margin:12px auto;max-width:420px}#status.correct{color:var(--accent)}#status.retry{color:#ffd193}summary{cursor:pointer;width:max-content;margin:auto}.hint{margin:14px auto 0}.frets{display:grid;grid-template-columns:repeat(6,1fr);max-width:300px;margin:auto}.frets span{border-bottom:1px solid var(--line);padding:8px}.frets strong{color:var(--accent)}.actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:20px}.foot{font-size:.9rem;text-align:center}
+
+.fretboard{position:relative;width:175px;height:284px;margin:28px auto 12px;background:repeating-linear-gradient(to bottom,var(--line) 0 1px,transparent 1px 25%);border-bottom:1px solid var(--line)}
+.fretboard.open{border-top:4px solid var(--muted)}.fretboard span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap}.fretboard .fret-dot,.fretboard .barre{background:var(--accent);color:#18220d;border-radius:20px;height:22px;line-height:22px;font-weight:750;font-size:.78rem}.fretboard .fret-dot{width:22px}.fretboard .fret-mark{top:-17px;color:var(--muted)}.fretboard .fret-start{right:calc(100% + 8px);transform:translateY(-50%);color:var(--muted);font-size:.85rem}.diagram-caption{font-size:.9rem;margin:12px auto}.shape-button{padding:6px 12px;margin-bottom:5px}
+
+.setup{text-align:left}.setup h2{font-size:1.5rem;letter-spacing:-.03em;color:var(--ink)}.selection-actions{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.selection-actions button{padding:7px 12px}.chord-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;max-height:290px;overflow:auto;padding:4px}.chord-option{position:relative}.chord-option input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}.chord-option span{display:block;padding:10px 4px;border:1px solid var(--line);border-radius:8px;text-align:center;font-weight:650}.chord-option input:checked+span{border-color:var(--accent);color:var(--accent);background:#303c2a}.chord-option input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}.setup-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:20px}.setup-footer p{margin:0}.setup-footer button{background:var(--accent);color:#18220d;border-color:var(--accent)}
+
+.inversions{margin:18px 0 0;gap:14px}.inversions label{display:inline-flex;align-items:center;gap:7px}.inversions input{accent-color:var(--accent);width:18px;height:18px;margin:0}.voicing{margin:15px auto 0}.voicing p{margin:7px 0}.voicing ul{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0;padding:0;list-style:none}.voicing li{min-width:54px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:1.2rem;font-weight:700}.voicing li:first-child{border-color:var(--accent);color:var(--accent)}
+
+.staff{display:block;width:220px;max-width:100%;height:auto;margin:0 auto 4px;color:var(--ink)}.staff line{stroke:var(--muted);stroke-width:1}.staff text{fill:currentColor}.staff .clef{font:52px "Segoe UI Symbol","Noto Music",serif}.staff .accidental{font:19px "Segoe UI Symbol",system-ui}.staff .notehead{fill:var(--panel);stroke:currentColor;stroke-width:2}
+.piano-keys{display:flex;width:min(100%,440px);height:96px;margin:10px auto 4px}.piano-key{flex:1;min-width:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;background:#f6f2e7;color:#474f5c;border:1px solid #141822;border-radius:0 0 5px 5px;font-size:clamp(.55rem,2vw,.8rem)}.piano-key.black{z-index:1;background:#151922;color:white;flex:0 0 4.6%;height:58%;margin:0 -2.3%;border-color:#070910}.piano-key.pressed{background:#a9d461;color:#17220d;font-weight:800}.piano-key.bass{background:var(--accent);box-shadow:inset 0 -4px #647d34}
+
+
+.fretboard .string-meter{top:0;bottom:0;transform:translateX(-50%);width:3px;background:#727a89;border-radius:2px;overflow:hidden}
+.string-meter i{position:absolute;bottom:0;left:0;width:100%;height:0;background:#64c6ff;transition:height 95ms linear}
+.fretboard .fret-dot,.fretboard .barre,.fretboard .fret-mark{z-index:1}
+.heard-layer{position:absolute;inset:0;z-index:2;pointer-events:none}
+.fretboard .heard-note{width:32px;height:32px;border:2px solid #6ecaff;border-radius:50%;background:#4ab7ff44}
+.fretboard .heard-note.open-note,.fretboard .heard-note.offboard{top:-17px;width:23px;height:23px;font-size:.72rem;color:var(--ink);line-height:19px}.fretboard .fret-mark.play-open{background:var(--accent);color:#18220d;border-radius:50%;width:18px;height:18px;line-height:17px}
+.diagram-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:16px;margin:8px 0;color:var(--muted);font-size:.85rem}
+.diagram-legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--accent)}
+.diagram-legend .heard-label::before{box-sizing:border-box;background:#4ab7ff44;border:1px solid #6ecaff}
+
+.staff .staff-play{color:var(--accent)}.staff .staff-heard{color:#86d3ff}.staff .staff-heard .notehead{fill:#4ab7ff55}.staff .staff-heard line{stroke:#6ecaff}.piano-key{position:relative}.piano-key.heard-key::after{content:"";position:absolute;inset:0;border:2px solid #6ecaff;background:#4ab7ff44;border-radius:inherit;pointer-events:none}.piano-key.pressed.heard-key::after{background:linear-gradient(#4ab7ff55 0 55%,transparent 55%)}.heard-piano{min-height:1.4em;color:#86d3ff}
+.staff .bass-clef{font-size:38px}
+</style>
+<main>
+<header><h1>Chord Drill</h1><div class="stats"><span>Correct <b id="score">0</b></span><span>Streak <b id="streak">0</b></span></div></header>
+<fieldset><legend>Instrument</legend><button id="guitar" aria-pressed="true">Guitar</button><button id="piano" aria-pressed="false">Piano</button></fieldset>
+<fieldset id="sets"><legend>Practice set</legend><button id="openSet" aria-pressed="true">Basic &amp; open chords</button><button id="barreSet" aria-pressed="false">Barre chords</button><button id="allSet" aria-pressed="false">All chords</button></fieldset>
+<section class="card setup" id="setup" aria-labelledby="setupTitle">
+<h2 id="setupTitle">Choose your chords</h2>
+<div class="selection-actions"><button id="selectAll">Select all</button><button id="clearAll">Clear selection</button></div>
+<div class="chord-picker" id="picker" role="group" aria-labelledby="setupTitle"></div>
+<fieldset class="inversions" id="inversions" hidden>
+<legend>Include inversions</legend>
+<label><input type="checkbox" id="firstInversion"> First inversion</label>
+<label><input type="checkbox" id="secondInversion"> Second inversion</label>
+</fieldset>
+<div class="setup-footer"><p id="selectionCount" role="status"></p><button id="begin">Start quiz</button></div>
+</section>
+<section class="card" id="quiz" aria-label="Chord quiz" hidden>
+<div>Play this chord</div><h2 id="target" tabindex="-1"></h2>
+<div id="status" role="status" aria-live="polite"></div>
+<div class="voicing" id="voicing" hidden></div>
+<details id="details"><summary>Show fingering</summary><div class="hint" id="hint"></div></details>
+<div class="actions"><button id="retryInput" hidden>Reconnect input</button><button id="stop" hidden>Stop input</button><button id="skip">Skip chord</button><button id="editSelection">Change chords</button></div>
+</section>
+<p class="foot" id="tip">Use standard tuning. Strum once per chord.</p>
+</main>
+<script>
+"use strict";
+const chords = [
+  ["C",0,[0,4,7],"x32010"],["D",2,[2,6,9],"xx0232"],["E",4,[4,8,11],"022100"],
+  ["G",7,[7,11,2],"320003"],["A",9,[9,1,4],"x02220"],["Am",9,[9,0,4],"x02210"],
+  ["Dm",2,[2,5,9],"xx0231"],["Em",4,[4,7,11],"022000"],
+  ["F",5,[5,9,0],null],["Bm",11,[11,2,6],null],["Cm",0,[0,3,7],null],["Gm",7,[7,10,2],null]
+];
+const names = ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
+const guitarRoots=["C","C#","D","Eb","E","F","F#","G","G#","A","Bb","B"];
+const qualities={
+  "":[0,4,7],m:[0,3,7],"5":[0,7],"7":[0,4,7,10],m7:[0,3,7,10],maj7:[0,4,7,11],
+  sus2:[0,2,7],sus4:[0,5,7],add9:[0,4,7,2],madd9:[0,3,7,2],dim:[0,3,6],aug:[0,4,8]
+};
+const openShapes={
+  C:"x32010/032010",D:"xx0232/000132",E:"022100/023100",G:"320003/210003",
+  A:"x02220/012300",Am:"x02210/023100",Dm:"xx0231/000231",Em:"022000/023000",F:"xx3211/003211",
+  A7:"x02020/010200",B7:"x21202/021304",D7:"xx0212/000213",E7:"020100/020100",
+  G7:"320001/320001",Amaj7:"x02120/021300",Cmaj7:"x32000/032000",Dmaj7:"xx0222/000123",
+  Fmaj7:"xx3210/003210",Gmaj7:"320002/210003",Em7:"022030/012030",
+  Dsus4:"xx0233/000134",Cadd9:"x32033/021034"
+};
+function movable(root, quality, family) {
+  const fifth=family==="A";
+  const fret=(root-(fifth?9:4)+12)%12 || 12;
+  const templates=fifth ? {
+    "":[null,0,2,2,2,0],m:[null,0,2,2,1,0]
+  } : {
+    "":[0,2,2,1,0,0],m:[0,2,2,0,0,0],
+    "5":[0,2,2,null,null,null],"7":[0,2,0,1,0,0],m7:[0,2,0,0,0,0],
+    maj7:[0,null,1,1,0,null],sus2:[0,2,4,null,null,null],sus4:[0,2,2,2,0,0],
+    add9:[0,2,2,1,0,2],madd9:[0,2,2,0,0,2],dim:[0,1,2,0,null,null],aug:[0,3,2,1,1,0]
+  };
+  const offset=templates[quality];
+  const fingerings=fifth ? {"":"012341",m:"013421"} :
+    {"":"134211",m:"134111","5":"134000","7":"131211",m7:"131111",maj7:"102310",
+     sus2:"124000",sus4:"123411",add9:"123214",madd9:"123114",dim:"123100",aug:"143221"};
+  return {
+    frets:offset.map(value=>value===null?null:fret+value),
+    fingers:[...fingerings[quality]].map(Number),
+    barre:!quality || quality==="m" ? [fifth?1:0,5,fret] : null,
+    family:fifth?"A shape":"E shape"
+  };
+}
+function makeGuitarChord(root,quality) {
+  const name=guitarRoots[root]+quality;
+  const open=openShapes[name];
+  const shifted=movable(root,quality,"E");
+  const barre=quality==="" || quality==="m";
+  const options=barre ? [shifted,movable(root,quality,"A")].sort((a,b)=>a.barre[2]-b.barre[2]) : [shifted];
+  if(open) {
+    const [frets,fingers]=open.split("/");
+    const shape={frets:[...frets].map(value=>value==="x"?null:Number(value)),fingers:[...fingers].map(Number)};
+    if(name==="F"){shape.barre=[4,5,1];shape.family="Partial barre";}
+    options.unshift(shape);
+  }
+  return [name,root,qualities[quality].map(value=>(value+root)%12),options];
+}
+const guitarChords=guitarRoots.flatMap((_,root)=>Object.keys(qualities).map(quality=>makeGuitarChord(root,quality)));
+let practice="openSet", shapeIndex=0, playing=false, quizChords=[];
+const selections=new Map();
+const basicChords=new Set(["Am","A","E","Em","C","D","Dm","G","F"]);
+const positionLabels=["Root position","First inversion","Second inversion"];
+
+let heardPiano=[];
+const keyboardStart=60, keyboardEnd=84;
+
+function pianoVoicing(chord) {
+  const [,root,notes,,position]=chord;
+  const base=keyboardStart+root;
+  const stack=notes.map(note=>base+(note-root+12)%12);
+  const voicing=stack.slice(position).concat(stack.slice(0,position).map(note=>note+12));
+  return voicing.at(-1)>=keyboardEnd ? voicing.map(note=>note-12) : voicing;
+}
+
+function pianoGrip(chord) {
+  const [,root,,,position]=chord;
+  const ordered=pianoVoicing(chord);
+  const letterNames=["C","D","E","F","G","A","B"];
+  const naturals=[0,2,4,5,7,9,11];
+  const rootLetter=letterNames.indexOf(names[root]);
+  return ordered.map((midi,index)=>{
+    const tone=(position+index)%3;
+    const letter=(rootLetter+2*tone)%7;
+    const accidental=(midi%12-naturals[letter]+12)%12;
+    const spelling=letterNames[letter]+(accidental===11?"♭":accidental===1?"♯":"");
+    return spelling+(Math.floor(midi/12)-1);
+  });
+}
+
+function drawStaff(grip,heard=[]) {
+  const letters="CDEFGAB";
+  const yFor=step=>116-(step-30)*6;
+  const trebleBottom=30;
+  const bassBottom=18;
+  const drawLine=(step,left,right)=>'<line x1="'+left+'" x2="'+right+'" y1="'+yFor(step)+'" y2="'+yFor(step)+'"/>';
+  const staves=[trebleBottom,bassBottom].map(bottom=>
+    Array.from({length:5},(_,index)=>drawLine(bottom+index*2,14,206)).join("")).join("");
+  function drawNotes(tones,x,style) {
+    const ledgers=new Set();
+    const noteheads=tones.map((note,index)=>{
+      const [,letter,accidental,octave]=note.match(/^([A-G])([♯♭]?)(-?[0-9]+)$/);
+      const step=Number(octave)*7+letters.indexOf(letter);
+      if(step<7 || step>49 || (step===49 && accidental==="♯")) return "";
+      const bottom=step>=28 ? trebleBottom : bassBottom;
+      for(let line=bottom-2;line>=step;line-=2) ledgers.add(line);
+      for(let line=bottom+10;line<=step;line+=2) ledgers.add(line);
+      const y=yFor(step);
+      const noteX=x+(style==="heard" && index%2?10:0);
+      return '<ellipse cx="'+noteX+'" cy="'+y+'" rx="8" ry="4.5" transform="rotate(-12 '+noteX+' '+y+')" class="notehead"/>'+
+        (accidental?'<text x="'+(noteX-21)+'" y="'+(y+5)+'" class="accidental">'+accidental+'</text>':"");
+    }).join("");
+    const ledgerLines=[...ledgers].map(step=>drawLine(step,x-12,x+20)).join("");
+    return '<g class="staff-'+style+'">'+ledgerLines+noteheads+'</g>';
+  }
+  const play=drawNotes(grip,102,"play");
+  const feedback=drawNotes(heard,169,"heard");
+  return '<svg class="staff" viewBox="0 -12 220 282" role="img" aria-label="Treble and bass staves, C1 to C7. Play: '+grip.join(", ")+
+    (heard.length?". Heard: "+heard.join(", "):"")+'">'+staves+
+    '<text class="clef" x="20" y="111">𝄞</text><text class="clef bass-clef" x="20" y="177">𝄢</text>'+
+    play+feedback+'</svg>';
+}
+
+function keyboardPitch(midi) {
+  const octave=Math.floor(midi/12);
+  if(midi<keyboardStart) return keyboardStart+(midi-octave*12);
+  if(midi>=keyboardEnd) return keyboardEnd-12+(midi-octave*12);
+  return midi;
+}
+
+function drawKeyboard(chord,grip,heard=[]) {
+  const sounding=pianoVoicing(chord);
+  const heardKeys=new Set(heard.map(keyboardPitch));
+  const keys=Array.from({length:keyboardEnd-keyboardStart},(_,index)=>{
+    const midi=keyboardStart+index;
+    const black=names[midi%12].includes("♯");
+    const active=sounding.indexOf(midi);
+    return '<span data-midi="'+midi+'" class="piano-key '+(black?"black ":"")+(active>=0?"pressed ":"")+(active===0?"bass ":"")+
+      (heardKeys.has(midi)?"heard-key":"")+'">'+(active>=0?grip[active]:(midi%12===0?"C"+(midi/12-1):""))+'</span>';
+  }).join("");
+  return '<div class="piano-keys" role="img" aria-label="Piano keyboard from C4 to B5. Play: '+grip.join(", ")+'">'+keys+'</div>';
+}
+
+function drawPiano() {
+  const grip=pianoGrip(target);
+  const label=positionLabels[target[4]];
+  const spelling=new Map(pianoVoicing(target).map((midi,index)=>[midi%12,grip[index].slice(0,-1)]));
+  const heard=heardPiano.map(midi=>(spelling.get(midi%12)||names[midi%12])+(Math.floor(midi/12)-1));
+  ui.voicing.innerHTML="<p>"+label+" · low to high</p><ul aria-label='Notes from low to high'>"+
+    grip.map(note=>"<li>"+note+"</li>").join("")+"</ul>"+drawStaff(grip,heard)+drawKeyboard(target,grip,heardPiano)+
+    '<div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span></div>'+
+    (heard.length?'<p class="heard-piano">Heard: '+heard.join(" · ")+'</p>':'<p class="heard-piano"></p>');
+}
+
+function setHeardPiano(notes) {
+  const sorted=[...new Set(notes)].sort((a,b)=>a-b);
+  if(sorted.length===heardPiano.length && sorted.every((note,index)=>note===heardPiano[index])) return;
+  heardPiano=sorted;
+  if(playing && instrument==="piano" && target?.[4]!==undefined) drawPiano();
+}
+
+function pianoSpectrumNotes(pitches) {
+  const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
+  const floor=Math.max(.00015,strongest*.13);
+  const notes=[];
+  for(let midi=24;midi<pitches.length;midi++){
+    const harmonic=.55*(pitches[midi-12]||0)+.40*(pitches[midi-19]||0)+.30*(pitches[midi-24]||0)+.19*(pitches[midi-28]||0);
+    const level=pitches[midi]-harmonic;
+    if(level>floor) notes.push({midi,level});
+  }
+  return notes.sort((a,b)=>b.level-a.level).slice(0,8).map(note=>note.midi);
+}
+function availableChords() {
+  return instrument==="piano" ? chords : guitarChords.filter(chord=>
+      practice==="allSet" || (practice==="openSet" ? Object.hasOwn(openShapes,chord[0]) : chord[3].some(shape=>shape.barre)));
+}
+function chosenChords() {
+  const key=instrument==="piano" ? instrument : practice;
+  if(!selections.has(key)) {
+    selections.set(key,new Set(availableChords().map(chord=>chord[0]).filter(name=>basicChords.has(name))));
+  }
+  return selections.get(key);
+}
+function updateSelection() {
+  const count=chosenChords().size;
+  ui.selectionCount.textContent=count+" of "+availableChords().length+" selected";
+  ui.begin.disabled=count===0;
+}
+function drawSelection() {
+  const chosen=chosenChords();
+  ui.picker.replaceChildren();
+  for(const [name] of availableChords()){
+    const label=document.createElement("label");
+    label.className="chord-option";
+    const input=document.createElement("input");
+    input.type="checkbox";
+    input.checked=chosen.has(name);
+    input.addEventListener("change",()=>{
+      if(input.checked) chosen.add(name);
+      else chosen.delete(name);
+      updateSelection();
+    });
+    const text=document.createElement("span");
+    text.textContent=name;
+    label.append(input,text);
+    ui.picker.append(label);
+  }
+  updateSelection();
+}
+function setAllChords(select) {
+  const chosen=chosenChords();
+  chosen.clear();
+  for(const input of ui.picker.querySelectorAll("input")) input.checked=select;
+  if(select) for(const [name] of availableChords()) chosen.add(name);
+  updateSelection();
+}
+function showSetup() {
+  playing=false;
+  stop();
+  deck=[];
+  drawSelection();
+  controls();
+}
+function beginQuiz() {
+  const chosen=chosenChords();
+  if(!chosen.size) return;
+  quizChords=availableChords().filter(chord=>chosen.has(chord[0]));
+  if(instrument==="piano"){
+    const positions=[0];
+    if(ui.firstInversion.checked) positions.push(1);
+    if(ui.secondInversion.checked) positions.push(2);
+    quizChords=quizChords.flatMap(chord=>positions.map(position=>[...chord,position]));
+  }
+  deck=[];
+  target=null;
+  count=0;
+  streak=0;
+  updateScore();
+  playing=true;
+  controls();
+  nextChord();
+  primeFeedbackAudio();
+  connectInput();
+  ui.target.focus();
+}
+const guitarTuning=[40,45,50,55,59,64];
+let meters=[], heardLayer=null, diagramStart=1, renderedHearing="";
+function drawGuitar() {
+  const shape=target[3][shapeIndex];
+  const frets=shape.frets;
+  const high=Math.max(...frets);
+  const low=Math.min(...frets.filter(fret=>fret>0));
+  const start=high<=4?1:low;
+  diagramStart=start;
+  const row=fret=>(fret-start+.5)*25;
+  const column=index=>index*20;
+  const labels=frets.map((fret,index)=>fret===null || fret===0
+    ? '<span class="fret-mark '+(fret===0?'play-open':'')+'" style="left:'+column(index)+'%">'+(fret===null?'×':'○')+'</span>' : '').join("");
+  const bar=shape.barre;
+  const strip=bar ? '<span class="barre" style="left:'+column((bar[0]+bar[1])/2)+'%;top:'+row(bar[2])+'%;width:calc('+column(bar[1]-bar[0])+'% + 22px)">1</span>' : '';
+  const dots=frets.map((fret,index)=>fret>0 && !(bar && index>=bar[0] && index<=bar[1] && fret===bar[2])
+    ? '<span class="fret-dot" style="left:'+column(index)+'%;top:'+row(fret)+'%">'+shape.fingers[index]+'</span>' : '').join("");
+  const variation=practice==="barreSet" ? target[3].filter(option=>option.barre) : target[3];
+  const bars=guitarTuning.map((_,index)=>'<span class="string-meter" style="left:'+column(index)+'%"><i></i></span>').join("");
+  ui.hint.innerHTML='<div class="fretboard '+(start===1?'open':'')+'" aria-hidden="true"><span class="fret-start" style="top:12.5%">'+start+'fr</span>'+bars+labels+strip+dots+'<div class="heard-layer"></div>'+
+    '</div><p class="diagram-caption">Low E to high E · '+frets.map(fret=>fret===null?'×':fret).join(' – ')+
+    (bar?' · Barre fret '+bar[2]+' ('+shape.family+')':'')+'</p><div class="diagram-legend"><span>Play</span><span class="heard-label">Heard</span></div>';
+  meters=[...ui.hint.querySelectorAll(".string-meter i")];
+  heardLayer=ui.hint.querySelector(".heard-layer");
+  renderedHearing="";
+  if(variation.length>1){
+    const button=document.createElement("button");
+    button.className="shape-button";
+    button.textContent="Next voicing";
+    button.onclick=()=>{
+      shapeIndex=target[3].indexOf(variation[(variation.indexOf(shape)+1)%variation.length]);
+      drawGuitar();
+      ui.hint.querySelector("button").focus();
+    };
+    ui.hint.append(button);
+  }
+}
+const ui = Object.fromEntries([...document.querySelectorAll("[id]")].map(element => [element.id,element]));
+let instrument="guitar", target, deck=[], count=0, streak=0, mode="", busy=false;
+let stream, context, analyser, timer, midiAccess, advance, stable, frames=0, armed=true;
+const keys = new Map();
+const openedMidiInputs=new Set();
+let midiCheck, lastMicAnswer=null, recentLevel=0, micReattacked=false;
+
+function status(message, style="") {
+  if(ui.status.textContent !== message) ui.status.textContent=message;
+  ui.status.className=style;
+}
+function controls() {
+  ui.retryInput.hidden=Boolean(mode) || busy;
+  ui.stop.hidden=!mode;
+  ui.sets.hidden=instrument!=="guitar" || playing;
+  ui.setup.hidden=playing;
+  ui.inversions.hidden=instrument!=="piano";
+  ui.details.hidden=instrument!=="guitar";
+  ui.voicing.hidden=instrument!=="piano";
+  ui.quiz.hidden=!playing;
+  ui.editSelection.disabled=busy;
+  ui.guitar.disabled=ui.piano.disabled=busy;
+}
+function idleMessage() {
+  if(mode==="midi") return "MIDI ready. Play the chord on your keyboard.";
+  if(mode==="mic") return "Listening. Play the chord when you are ready.";
+  return "Input disconnected.";
+}
+function nextChord() {
+  if(!playing) return;
+  clearTimeout(midiCheck);
+  clearTimeout(advance);
+  advance=null;
+  stable=null;
+  frames=0;
+  ui.details.open=false;
+  if(!deck.length) {
+    deck=[...quizChords];
+    for(let index=deck.length-1;index>0;index--) {
+      const swap=Math.floor(Math.random()*(index+1));
+      [deck[index],deck[swap]]=[deck[swap],deck[index]];
+    }
+    if(deck.at(-1)===target) deck.unshift(deck.pop());
+  }
+  target=deck.pop();
+  ui.target.textContent=target[0];
+  if(instrument==="guitar") {
+    shapeIndex=practice==="barreSet" ? target[3].findIndex(shape=>shape.barre) : 0;
+    ui.details.open=true;
+    drawGuitar();
+  } else {
+    drawPiano();
+  }
+  status(idleMessage());
+}
+function updateScore() {
+  ui.score.textContent=count;
+  ui.streak.textContent=streak;
+}
+let feedbackAudio, feedbackUntil=0;
+
+function primeFeedbackAudio() {
+  if(typeof AudioContext!=="function") return;
+  try {
+    feedbackAudio??=new AudioContext();
+    if(feedbackAudio.state==="suspended") feedbackAudio.resume().catch(()=>{});
+  } catch {
+    feedbackAudio=null;
+  }
+}
+
+function playCorrectCue() {
+  if(feedbackAudio?.state!=="running") return;
+  const start=feedbackAudio.currentTime+.008;
+  feedbackUntil=start+.42;
+  const cue=[{note:48,volume:.16},{note:72,volume:.10},{note:96,volume:.055}];
+  for(const [index,{note,volume}] of cue.entries()){
+    const time=start+index*.075;
+    const oscillator=feedbackAudio.createOscillator();
+    const gain=feedbackAudio.createGain();
+    oscillator.type="sine";
+    oscillator.frequency.value=440*2**((note-69)/12);
+    gain.gain.setValueAtTime(.0001,time);
+    gain.gain.exponentialRampToValueAtTime(volume,time+.009);
+    gain.gain.exponentialRampToValueAtTime(.0001,time+.090);
+    oscillator.connect(gain).connect(feedbackAudio.destination);
+    oscillator.onended=()=>{oscillator.disconnect();gain.disconnect();};
+    oscillator.start(time);
+    oscillator.stop(time+.095);
+  }
+}
+
+function answer(name) {
+  if(advance) return;
+  if(name===target[0]) {
+    count++;
+    streak++;
+    armed=false;
+    if(mode==="mic"){lastMicAnswer=name;micReattacked=false;}
+    updateScore();
+    status("Correct! "+name,"correct");
+    playCorrectCue();
+    advance=setTimeout(nextChord,450);
+  } else {
+    streak=0;
+    updateScore();
+    status("Heard "+name+". Try "+target[0]+" again.","retry");
+  }
+}
+function stop() {
+  clearInterval(timer);
+  stream?.getTracks().forEach(track=>track.stop());
+  if(context?.state!=="closed") context?.close().catch(()=>{});
+  stream=context=analyser=null;
+  if(midiAccess) {
+    midiAccess.onstatechange=null;
+    midiAccess=null;
+  }
+  for(const input of openedMidiInputs){
+    input.onmidimessage=null;
+    input.close().catch(()=>{});
+  }
+  openedMidiInputs.clear();
+  keys.clear();
+  setHeardPiano([]);
+  clearTimeout(midiCheck);
+  clearTimeout(advance);
+  const pending=Boolean(advance);
+  advance=null;
+  mode="";
+  lastMicAnswer=null;
+  recentLevel=0;
+  micReattacked=false;
+  for(const meter of meters) meter.style.height="0%";
+  if(heardLayer) heardLayer.innerHTML="";
+  renderedHearing="";
+  armed=true;
+  stable=null;
+  frames=0;
+  controls();
+  if(pending) nextChord();
+  else status(idleMessage());
+}
+function switchInstrument(value) {
+  if(value===instrument || busy) return;
+  instrument=value;
+  count=0;
+  streak=0;
+  updateScore();
+  for(const name of ["guitar","piano"]) ui[name].setAttribute("aria-pressed",String(name===value));
+  ui.tip.textContent=value==="guitar" ? "Use standard tuning. Strum once per chord." : "Play the chord tones together in any inversion. Release the keys between chords when using MIDI.";
+  showSetup();
+}
+function spectralPitches(spectrum,binHz) {
+  const pitches=new Float64Array(100);
+  const first=Math.max(2,Math.ceil((instrument==="guitar"?68:30)/binHz));
+  const last=Math.min(spectrum.length-2,Math.floor((instrument==="guitar"?1600:2200)/binHz));
+  for(let bin=first;bin<=last;bin++) {
+    const peak=spectrum[bin];
+    if(peak < -91 || peak<spectrum[bin-1] || peak<=spectrum[bin+1]) continue;
+    const left=spectrum[bin-1], right=spectrum[bin+1];
+    const curvature=2*peak-left-right;
+    const offset=curvature>0 && Number.isFinite(curvature) ? 0.5*(right-left)/curvature : 0;
+    const midi=69+12*Math.log2((bin+offset)*binHz/440);
+    const note=Math.round(midi);
+    if(note<(instrument==="guitar"?30:24) || note>=pitches.length || Math.abs(note-midi)>.38) continue;
+    pitches[note]=Math.max(pitches[note],10**(peak/20));
+  }
+  return pitches;
+}
+function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz)) {
+  const chroma=new Float64Array(12);
+  for(let note=30;note<pitches.length;note++) {
+    const harmonics=.43*(pitches[note-12]||0)+.38*(pitches[note-19]||0)+.25*(pitches[note-24]||0)+.19*(pitches[note-28]||0)+.15*(pitches[note-31]||0);
+    chroma[note%12]+=Math.max(0,pitches[note]-harmonics)**.76;
+  }
+  const total=chroma.reduce((sum,weight)=>sum+weight,0);
+  if(!total) return null;
+  const ranked=[];
+  const guitar=instrument==="guitar";
+  const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
+  const bass=pitches.findIndex(value=>value>=strongest*.22)%12;
+  for(const [name,root,notes] of guitar ? guitarChords : chords) {
+    const weights=notes.map(note=>chroma[note]/total);
+    const weakest=Math.min(...weights);
+    if(weakest<(notes.length===4?.054:.065)) continue;
+    const coverage=weights.reduce((sum,weight)=>sum+weight,0);
+    if(notes.length===2 && (coverage<.85 || bass!==root)) continue;
+    ranked.push([name,coverage+weakest*.12+(guitar && bass===root?.075:0)]);
+  }
+  ranked.sort((a,b)=>b[1]-a[1]);
+  if(!ranked.length || ranked[0][1]<.69 || ranked[0][1]-(ranked[1]?.[1]??0)<(guitar?.029:.045)) return null;
+  return ranked[0][0];
+}
+function matchHeardNotes(pitches,frets,start) {
+  const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
+  const floor=Math.max(.00013,strongest*.11);
+  const audible=[];
+  for(let midi=40;midi<pitches.length;midi++){
+    const level=pitches[midi]-.42*pitches[midi-12]-.36*(pitches[midi-19]||0)-.2*(pitches[midi-24]||0);
+    if(level>floor) audible.push({midi,level});
+  }
+  const expectedPitches=new Set(frets.flatMap((fret,index)=>fret===null?[]:[guitarTuning[index]+fret]));
+  audible.sort((a,b)=>Number(expectedPitches.has(b.midi))-Number(expectedPitches.has(a.midi)) || b.level-a.level);
+  const heard=Array(6).fill(null);
+  for(const {midi,level} of audible){
+    const placement=({string,fret})=>{
+      if(fret===frets[string]) return 0;
+      if(fret===0 || (fret>=start && fret<start+4)) return 1;
+      return 2;
+    };
+    const candidates=guitarTuning.map((open,string)=>({string,fret:midi-open})).filter(({string,fret})=>
+      !heard[string] && fret>=0 && fret<=22);
+    candidates.sort((a,b)=>placement(a)-placement(b) ||
+      Math.abs(a.fret-(frets[a.string]??start))-Math.abs(b.fret-(frets[b.string]??start)) ||
+      Number(frets[a.string]===null)-Number(frets[b.string]===null));
+    if(!candidates.length) continue;
+    const {string,fret}=candidates[0];
+    heard[string]={midi,fret,level:Math.min(1,Math.log2(level/floor)/3.1)};
+  }
+  return heard;
+}
+
+function guitarGradingPitches(pitches,frets,heard) {
+  const muted=heard.filter((note,index)=>note && frets[index]===null);
+  if(!muted.length) return pitches;
+  const filtered=pitches.slice();
+  const protectedNotes=new Set(heard.filter((note,index)=>note && frets[index]!==null).map(note=>note.midi));
+  for(const {midi} of muted){
+    filtered[midi]=0;
+    for(const [interval,weight] of [[12,.42],[19,.36],[24,.2]]) {
+      const harmonic=midi+interval;
+      if(harmonic<filtered.length && !protectedNotes.has(harmonic))
+        filtered[harmonic]=Math.max(0,filtered[harmonic]-pitches[midi]*weight);
+    }
+  }
+  return filtered;
+}
+
+function updateMeters(heard) {
+  if(!heardLayer) return;
+  const markers=[];
+  for(let index=0;index<meters.length;index++){
+    const note=heard[index];
+    meters[index].style.height=note ? Math.round(note.level*100)+"%" : "0%";
+    if(note){
+      const offboard=note.fret>0 && (note.fret<diagramStart || note.fret>=diagramStart+4);
+      const vertical=note.fret===0 || offboard ? "" : "top:"+((note.fret-diagramStart+.5)*25)+"%;";
+      markers.push('<span class="heard-note '+(offboard?'offboard':note.fret===0?'open-note':'')+'" style="left:'+(index*20)+'%;'+vertical+'">'+(offboard?note.fret:'')+'</span>');
+    }
+  }
+  const markup=markers.join("");
+  if(markup!==renderedHearing){
+    heardLayer.innerHTML=markup;
+    renderedHearing=markup;
+  }
+}
+
+function canGradeMic(name) {
+  return lastMicAnswer!==name || (name===target[0] && micReattacked);
+}
+
+async function connectInput() {
+  if(!playing || busy || mode) return;
+  if(instrument==="piano" && await startMidi()) return;
+  if(playing) return startMic();
+}
+
+async function startMic() {
+  if(busy || mode) return;
+  if(!navigator.mediaDevices?.getUserMedia) {
+    status("Microphone unavailable here. Open the app in a browser over HTTPS or localhost.","retry");
+    return;
+  }
+  busy=true;
+  controls();
+  status("Connecting microphone…");
+  try {
+    context=new AudioContext();
+    await context.resume();
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    analyser=context.createAnalyser();
+    analyser.fftSize=8192;
+    analyser.smoothingTimeConstant=.18;
+    context.createMediaStreamSource(stream).connect(analyser);
+    const time=new Float32Array(analyser.fftSize);
+    const spectrum=new Float32Array(analyser.frequencyBinCount);
+    mode="mic";
+    for(const track of stream.getTracks()) track.addEventListener("ended",()=>{
+      if(mode==="mic"){stop();status("The microphone was disconnected.","retry");}
+    });
+    timer=setInterval(()=>{
+      if(feedbackAudio && feedbackAudio.currentTime<feedbackUntil) return;
+      analyser.getFloatTimeDomainData(time);
+      let power=0;
+      for(let index=time.length-1024;index<time.length;index++) power+=time[index]*time[index];
+      const level=Math.sqrt(power/1024);
+      if(level<.0025 || level>Math.max(.004,recentLevel*1.65)) micReattacked=true;
+      recentLevel=level*.6+recentLevel*.4;
+      analyser.getFloatFrequencyData(spectrum);
+      const binHz=context.sampleRate/analyser.fftSize;
+      let pitches=spectralPitches(spectrum,binHz);
+      if(instrument==="guitar"){
+        const frets=target[3][shapeIndex].frets;
+        const heard=matchHeardNotes(pitches,frets,diagramStart);
+        updateMeters(heard);
+        pitches=guitarGradingPitches(pitches,frets,heard);
+      } else {
+        setHeardPiano(level<.0025 ? [] : pianoSpectrumNotes(pitches));
+      }
+      if(advance) return;
+      if(level<.0025){stable=null;frames=0;return;}
+      const detected=identify(spectrum,binHz,pitches);
+      frames=detected && detected===stable ? frames+1 : 1;
+      stable=detected;
+      if(detected && frames>=3 && canGradeMic(detected)) {
+        if(frames===3 || (micReattacked && lastMicAnswer===detected)) answer(detected);
+      }
+      if(!detected && !ui.status.classList.contains("retry")) status("Listening. Let the chord notes ring.");
+    },85);
+    status(idleMessage());
+  } catch(error) {
+    stop();
+    status(error.name==="NotAllowedError" ? "Microphone access was denied. Allow it in your browser and try again." : "Could not start the microphone. Check your input device and try again.","retry");
+  } finally {
+    busy=false;
+    controls();
+  }
+}
+function handleMidi(event) {
+  const [message,note,velocity]=event.data;
+  const type=message&0xf0;
+  const channel=message&0x0f;
+  const prefix=event.currentTarget.id+":"+channel+":";
+  const key=prefix+note;
+  if(type===0x90 && velocity>0) keys.set(key,note);
+  else if(type===0x80 || type===0x90) keys.delete(key);
+  else if(type===0xb0 && (note===120 || note===123)) {
+    for(const held of keys.keys()) if(held.startsWith(prefix)) keys.delete(held);
+  } else return;
+  setHeardPiano(keys.values());
+  clearTimeout(midiCheck);
+  if(!keys.size){armed=true;return;}
+  if(!armed || advance || type!==0x90 || !velocity) return;
+  midiCheck=setTimeout(checkMidiChord,85);
+}
+function checkMidiChord() {
+  const heard=new Set([...keys.values()].map(value=>value%12));
+  const match=chords.find(chord=>heard.size===3 && chord[2].every(value=>heard.has(value)));
+  if(match) answer(match[0]);
+  else if(heard.size>=3) answer([...heard].map(value=>names[value]).join(" · "));
+}
+async function startMidi() {
+  if(!navigator.requestMIDIAccess) return false;
+  busy=true;
+  controls();
+  status("Connecting MIDI keyboard…");
+  try {
+    const access=await navigator.requestMIDIAccess({sysex:false});
+    if(!playing) return false;
+    const connected=[...access.inputs.values()].filter(input=>input.state==="connected");
+    const results=await Promise.allSettled(connected.map(input=>input.open()));
+    for(const [index,result] of results.entries()){
+      if(result.status==="fulfilled") openedMidiInputs.add(connected[index]);
+    }
+    if(!openedMidiInputs.size) return false;
+    if(!playing || [...openedMidiInputs].every(input=>input.state!=="connected")){
+      stop();
+      return false;
+    }
+    midiAccess=access;
+    mode="midi";
+    for(const input of openedMidiInputs) input.onmidimessage=handleMidi;
+    midiAccess.onstatechange=event=>{
+      if(event.port.state!=="disconnected" || !openedMidiInputs.has(event.port)) return;
+      clearTimeout(midiCheck);
+      keys.clear();
+      setHeardPiano([]);
+      armed=true;
+      if([...openedMidiInputs].every(input=>input.state!=="connected")){
+        stop();
+        if(playing) startMic();
+      }
+    };
+    status(idleMessage());
+    return true;
+  } catch {
+    stop();
+    return false;
+  } finally {
+    busy=false;
+    controls();
+  }
+}
+for(const id of ["openSet","barreSet","allSet"]){
+  ui[id].onclick=()=>{
+    if(practice===id) return;
+    practice=id;
+    for(const choice of ["openSet","barreSet","allSet"])ui[choice].setAttribute("aria-pressed",String(choice===id));
+    drawSelection();
+  };
+}
+ui.selectAll.onclick=()=>setAllChords(true);
+ui.clearAll.onclick=()=>setAllChords(false);
+ui.begin.onclick=beginQuiz;
+ui.editSelection.onclick=()=>{showSetup(); ui.selectAll.focus();};
+ui.guitar.onclick=()=>switchInstrument("guitar");
+ui.piano.onclick=()=>switchInstrument("piano");
+ui.retryInput.onclick=connectInput;
+ui.stop.onclick=stop;
+ui.skip.onclick=()=>{if(!advance) streak=0;updateScore();nextChord();};
+window.addEventListener("pagehide",()=>{
+  stop();
+  if(feedbackAudio && feedbackAudio.state!=="closed") feedbackAudio.close().catch(()=>{});
+  feedbackAudio=null;
+});
+showSetup();
+</script>
+</html>
+
+
+
