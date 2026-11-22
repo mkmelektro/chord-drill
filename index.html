@@ -53,6 +53,8 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 .fft-debug canvas{cursor:crosshair}.fft-debug canvas:focus-visible{outline:2px solid #88ceff;outline-offset:2px}.fft-debug .fft-bins{margin:0 4px 7px;color:#a7d9f7}
 
 .fft-settings{display:flex;align-items:center;flex-wrap:wrap;gap:6px 9px;margin:8px 4px 0;color:var(--muted);font-size:.85rem}.fft-settings select{appearance:none;background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 14px center/5px 5px no-repeat,linear-gradient(135deg,currentColor 50%,transparent 50%) right 9px center/5px 5px no-repeat #2d3343;color:var(--ink);border:1px solid var(--line);border-radius:7px;font:inherit;padding:6px 24px 6px 8px}.fft-settings .fft-signal{flex-basis:100%;margin:2px 0 0;color:#a7d9f7}
+
+.fft-calibration ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));list-style:none;gap:6px;margin:7px 4px;padding:0}.fft-calibration li{display:flex;flex-direction:column;gap:3px;background:#2c3240;border-radius:6px;padding:6px;font-variant-numeric:tabular-nums;font-size:.78rem;color:#c6c9d3}.fft-calibration strong{color:var(--ink)}
 </style>
 <main id="appRoot">
 <div class="masthead" id="masthead" hidden><button id="homeButton">Instruments</button><strong>Chord Drill</strong><button id="fullscreenToggle" aria-pressed="false">Full screen</button></div>
@@ -129,6 +131,10 @@ main{width:min(790px,100% - 32px)}.intro{padding:clamp(15px,7vh,70px) 0}.intro h
 <p id="fftReadout">Waiting for microphone input.</p>
 <canvas id="fftCanvas" tabindex="0" role="img" aria-label="Live FFT spectrum with one bar per bin. Use left and right arrow keys to inspect bins."></canvas>
 <p class="fft-bins" id="fftBinReadout">Move over the graph or tap a bar to inspect a bin.</p>
+<div id="fftCalibration" class="fft-calibration" hidden>
+<p>String calibration · input level before AGC and correction used for detection</p>
+<ul id="fftStringLevels"></ul>
+</div>
 </details>
 <section class="card results" id="results" hidden aria-labelledby="resultsTitle">
 <h2 id="resultsTitle" tabindex="-1">Time’s up</h2>
@@ -558,8 +564,9 @@ let calibration=null, guitarProfile=null;
 
 function resetGuitarCalibration() {
   guitarProfile=null;
+  drawFftCalibration();
   calibration=instrument==="guitar" ? {
-    notes:Array(6).fill(null), started:0, readyAfter:0, noise:0, peakLevel:0, previousLevel:0, message:""
+    notes:Array(6).fill(null), noisePitches:new Float64Array(100), started:0, readyAfter:0, noise:0, peakLevel:0, previousLevel:0, message:""
   } : null;
   if(calibration) drawCalibration("Connecting microphone…");
 }
@@ -606,23 +613,26 @@ function openStringPeaks(spectrum,binHz) {
     return best;
   });
 }
-function calibrationProfile(notes,peakLevel,noise) {
+function calibrationProfile(notes,peakLevel,noise,noisePitches=new Float64Array(100)) {
   const strongest=Math.max(...notes.map(note=>note?.amplitude||0));
-  const missing=notes.map((note,index)=>!note || note.amplitude<strongest*.033 ? index : -1).filter(index=>index>=0);
+  const missing=notes.map((note,index)=>!note || note.amplitude<Math.max(strongest*.025,noisePitches[guitarTuning[index]]*2.6) ? index : -1).filter(index=>index>=0);
   if(missing.length) return {missing};
   const levels=notes.map(note=>note.amplitude).sort((a,b)=>a-b);
   const median=(levels[2]+levels[3])/2;
   return {profile:{
     strings:notes.map(note=>({
+      reference:note.amplitude,
       detune:Math.max(-.48,Math.min(.48,note.offset)),
       gain:Math.max(.80,Math.min(2.8,median/note.amplitude))
     })),
-    signalFloor:Math.max(.0006,Math.min(.0025,Math.max(noise*2.2,peakLevel*.045)))
+    noisePitches,
+    signalFloor:Math.max(.00025,Math.min(.0025,Math.max(noise*2.2,peakLevel*.035)))
   }};
 }
 
 function finishCalibration(profile=null) {
   guitarProfile=profile;
+  drawFftCalibration();
   calibration=null;
   stable=null;
   frames=0;
@@ -632,32 +642,40 @@ function finishCalibration(profile=null) {
   ui.target.focus();
 }
 
-function collectCalibration(spectrum,binHz,level,now) {
+function collectCalibration(spectrum,binHz,level,now,agcGain=1) {
   const state=calibration;
   if(state.readyAfter){
     if(now>=state.readyAfter) finishCalibration(state.profile);
     return;
   }
+  const rawLevel=level/agcGain;
   if(!state.started){
-    const trigger=Math.max(.0016,state.noise*3);
-    const attack=level>trigger && (!state.retry || level>state.previousLevel*1.8);
-    state.previousLevel=level;
+    const trigger=Math.max(.0006,state.noise*3);
+    const attack=rawLevel>trigger && (!state.retry || rawLevel>state.previousLevel*1.8);
+    state.previousLevel=rawLevel;
     if(!attack){
-      if(level<trigger) state.noise=state.noise*.9+level*.1;
+      if(rawLevel<trigger && !state.retry){
+        state.noise=state.noise*.9+rawLevel*.1;
+        const background=spectralPitches(spectrum,binHz);
+        for(let note=0;note<background.length;note++)
+          state.noisePitches[note]=Math.max(state.noisePitches[note]*.96,background[note]/agcGain);
+      }
       return;
     }
     state.started=now;
-    state.peakLevel=level;
+    state.peakLevel=rawLevel;
   }
-  state.peakLevel=Math.max(state.peakLevel,level);
+  state.peakLevel=Math.max(state.peakLevel,rawLevel);
   for(const [index,note] of openStringPeaks(spectrum,binHz).entries()){
-    if(note && (!state.notes[index] || note.amplitude>state.notes[index].amplitude)) state.notes[index]=note;
+    if(!note) continue;
+    note.amplitude/=agcGain;
+    if(!state.notes[index] || note.amplitude>state.notes[index].amplitude) state.notes[index]=note;
   }
   if(now-state.started<760){
     drawCalibration("Listening to the open strings…");
     return;
   }
-  const result=calibrationProfile(state.notes,state.peakLevel,state.noise);
+  const result=calibrationProfile(state.notes,state.peakLevel,state.noise,state.noisePitches);
   if(result.profile){
     state.profile=result.profile;
     state.readyAfter=now+500;
@@ -669,7 +687,7 @@ function collectCalibration(spectrum,binHz,level,now) {
   state.notes=Array(6).fill(null);
   state.started=0;
   state.retry=true;
-  state.previousLevel=level;
+  state.previousLevel=rawLevel;
 }
 
 function calibratedGuitarPitches(frets) {
@@ -681,6 +699,22 @@ function calibratedGuitarPitches(frets) {
     if(!expected.has(note) || expected.get(note).gain>correction.gain) expected.set(note,correction);
   }
   return expected;
+}
+
+function inputPitchFloor(note,profile,expected) {
+  return Math.max((profile.noisePitches[note]||0)*2.6,(expected?.get(note)?.reference||0)*.014);
+}
+
+function drawFftCalibration() {
+  const profile=guitarProfile;
+  ui.fftCalibration.hidden=!profile;
+  if(!profile) return;
+  ui.fftStringLevels.innerHTML=profile.strings.map(({reference,gain,detune},index)=>{
+    const level=20*Math.log10(reference), correction=20*Math.log10(gain);
+    const signed=value=>(value>=0?"+":"")+value.toFixed(1);
+    return '<li><strong>'+openStringNames[index]+'</strong><span>'+level.toFixed(1)+' dB input</span><span>'+
+      signed(correction)+' dB · '+signed(detune*100)+'¢</span></li>';
+  }).join("");
 }
 
 let meters=[], heardLayer=null, diagramStart=1, renderedHearing="";
@@ -958,12 +992,14 @@ function spectralPitches(spectrum,binHz,expected=null) {
   return pitches;
 }
 
-function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz),expected=null,prompt=null) {
+function identify(spectrum,binHz,pitches=spectralPitches(spectrum,binHz),expected=null,prompt=null,profile=null,agcGain=1) {
   const chroma=new Float64Array(12);
   for(let note=30;note<pitches.length;note++) {
     const harmonics=.43*(pitches[note-12]||0)+.38*(pitches[note-19]||0)+.25*(pitches[note-24]||0)+.19*(pitches[note-28]||0)+.15*(pitches[note-31]||0);
     const weight=expected?.get(note)?.gain||1;
-    chroma[note%12]+=(Math.max(0,pitches[note]-harmonics)*weight)**.76;
+    const strength=Math.max(0,pitches[note]-harmonics);
+    if(profile && strength/agcGain<inputPitchFloor(note,profile,expected)) continue;
+    chroma[note%12]+=(strength*weight)**.76;
   }
   const total=chroma.reduce((sum,weight)=>sum+weight,0);
   if(!total) return null;
@@ -999,7 +1035,7 @@ function closeGuitarChord([,root,notes],share,bass,topScore) {
   const score=coverage+weakest*.12+(bass===root?.075:0);
   return topScore-score<=.095;
 }
-function matchHeardNotes(pitches,frets,start,profile=null) {
+function matchHeardNotes(pitches,frets,start,profile=null,agcGain=1) {
   const strongest=pitches.reduce((max,value)=>Math.max(max,value),0);
   const floor=Math.max(.00013,strongest*.11);
   const maxGain=profile ? Math.max(1,...profile.strings.map(string=>string.gain)) : 1;
@@ -1025,7 +1061,7 @@ function matchHeardNotes(pitches,frets,start,profile=null) {
     if(!candidates.length) continue;
     const {string,fret}=candidates[0];
     const calibratedLevel=level*(profile?.strings[string].gain??1);
-    if(calibratedLevel<=floor) continue;
+    if(calibratedLevel<=floor || (profile?.noisePitches && level/agcGain<(profile.noisePitches[midi]||0)*2.6)) continue;
     heard[string]={midi,fret,level:Math.min(1,Math.log2(calibratedLevel/floor)/3.1)};
   }
   return heard;
@@ -1284,18 +1320,18 @@ async function startMic() {
       const level=Math.sqrt(power/1024);
       const gain=inputGain.value;
       updateInputGain(inputGain,level,context.currentTime);
-      const signalFloor=instrument==="guitar" ? guitarProfile?.signalFloor??.0025 : .0025;
+      const signalFloor=instrument==="guitar" && guitarProfile ? guitarProfile.signalFloor*gain : .0025;
       if(level<signalFloor || level>Math.max(signalFloor*1.6,recentLevel*1.65)) micReattacked=true;
       recentLevel=level*.6+recentLevel*.4;
       analyser.getFloatFrequencyData(spectrum);
       const binHz=context.sampleRate/analyser.fftSize;
       paintFft(spectrum,binHz,context.sampleRate,gain);
-      if(calibration){collectCalibration(spectrum,binHz,level,performance.now());return;}
+      if(calibration){collectCalibration(spectrum,binHz,level,performance.now(),gain);return;}
       const frets=instrument==="guitar" ? target[3][shapeIndex].frets : null;
       const expected=frets && guitarProfile ? calibratedGuitarPitches(frets) : null;
       let pitches=spectralPitches(spectrum,binHz,expected);
       if(instrument==="guitar"){
-        const heard=matchHeardNotes(pitches,frets,diagramStart,guitarProfile);
+        const heard=matchHeardNotes(pitches,frets,diagramStart,guitarProfile,gain);
         updateMeters(heard);
         pitches=guitarGradingPitches(pitches,frets,heard);
       } else {
@@ -1303,7 +1339,7 @@ async function startMic() {
       }
       if(advance) return;
       if(level<signalFloor){stable=null;frames=0;return;}
-      const detected=identify(spectrum,binHz,pitches,expected,instrument==="guitar" ? target : null);
+      const detected=identify(spectrum,binHz,pitches,expected,instrument==="guitar" ? target : null,instrument==="guitar" ? guitarProfile : null,gain);
       frames=detected && detected===stable ? frames+1 : 1;
       stable=detected;
       if(detected && frames>=3 && canGradeMic(detected)) {
